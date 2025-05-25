@@ -16,5 +16,11 @@ public ResponseEntity<List<FlowConfigBasicInfo>> getAllFlowConfigs() {
     List<FlowConfigBasicInfo> list = flowConfigService.getAllFlowConfigs();
     return ResponseEntity.ok(list);
 }
+    @GetMapping("/{id}")
+public ResponseEntity<FlowConfigFullResponseDTO> getFlowConfigById(@PathVariable Long id) {
+    FlowConfigFullResponseDTO response = flowConfigService.getFlowConfigById(id);
+    return ResponseEntity.ok(response);
+}
+
 
 }
