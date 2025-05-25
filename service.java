@@ -62,6 +62,14 @@ public FlowConfigFullResponseDTO getFlowConfigById(Long id) {
             .build();
 }
 
+    public String deleteFlowConfig(Long id) {
+    FlowConfig config = flowConfigRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Flow configuration not found"));
+
+    flowConfigRepository.delete(config);
+    return "Flow configuration with ID " + id + " deleted successfully.";
+}
+
     
 
 }
