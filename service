@@ -1,0 +1,26 @@
+@Service
+@RequiredArgsConstructor
+public class FlowConfigService {
+
+    private final FlowConfigRepository flowConfigRepository;
+    private final FlowConfigMapper flowConfigMapper;
+
+    public FlowConfigResponseDTO createFlowConfig(FlowConfigRequestDTO requestDTO) {
+        FlowConfigDataDTO dataDTO = requestDTO.getData();
+
+        // Map DTO to Entity
+        FlowConfig entity = flowConfigMapper.toEntity(dataDTO);
+
+        // Save entity (cascades to children)
+        FlowConfig savedEntity = flowConfigRepository.save(entity);
+
+        // Prepare response
+        FlowConfigBasicInfo basicInfo = flowConfigMapper.toBasicInfo(savedEntity);
+
+        return FlowConfigResponseDTO.builder()
+                .success(true)
+                .message("Flow configuration created successfully.")
+                .data(basicInfo)
+                .build();
+    }
+}
