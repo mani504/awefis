@@ -23,4 +23,14 @@ public ResponseEntity<FlowConfigFullResponseDTO> getFlowConfigById(@PathVariable
 }
 
 
+@PutMapping("/{id}")
+public ResponseEntity<FlowConfigResponseDTO> updateFlowConfig(
+        @PathVariable Long id,
+        @RequestBody FlowConfigRequestDTO requestDTO) {
+    FlowConfigResponseDTO response = flowConfigService.updateFlowConfig(id, requestDTO);
+    return ResponseEntity.ok(response);
+}
+
+    
+
 }
