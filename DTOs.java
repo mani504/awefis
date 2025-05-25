@@ -93,3 +93,13 @@ public class FlowConfigBasicInfo {
     private String createBy;
 }
 
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class FlowConfigFullResponseDTO {
+    private FlowConfigDataDTO data;
+}
+
+
