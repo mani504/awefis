@@ -31,6 +31,13 @@ public ResponseEntity<FlowConfigResponseDTO> updateFlowConfig(
     return ResponseEntity.ok(response);
 }
 
+    @DeleteMapping("/{id}")
+public ResponseEntity<Map<String, String>> deleteFlowConfig(@PathVariable Long id) {
+    String message = flowConfigService.deleteFlowConfig(id);
+    Map<String, String> response = Collections.singletonMap("message", message);
+    return ResponseEntity.ok(response);
+}
+
     
 
 }
