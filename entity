@@ -1,0 +1,135 @@
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "flow_config")
+public class FlowConfig {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String name;
+    private String email;
+    private String description;
+    private boolean scheduling;
+
+    @Column(name = "scheduling_cron")
+    private String schedulingCron;
+
+    @Column(name = "create_by")
+    private String createBy;
+
+    @ElementCollection
+    @CollectionTable(name = "flow_config_target_devices", joinColumns = @JoinColumn(name = "flow_config_id"))
+    @Column(name = "device")
+    private List<String> targetDevices;
+
+    @OneToOne(cascade = CascadeType.ALL)
+    private ServiceVerificationBefore serviceVerificationBefore;
+
+    @OneToOne(cascade = CascadeType.ALL)
+    private ConfigSettings configSettings;
+
+    @OneToOne(cascade = CascadeType.ALL)
+    private ServiceVerificationAfter serviceVerificationAfter;
+}
+
+
+
+
+
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "service_verification_before")
+public class ServiceVerificationBefore {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private boolean configurationsBackup;
+
+    @ElementCollection
+    @CollectionTable(name = "before_service_check_commands", joinColumns = @JoinColumn(name = "verification_id"))
+    @Column(name = "command")
+    private List<String> serviceCheckCommands;
+}
+
+
+
+
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "config_settings")
+public class ConfigSettings {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ElementCollection
+    @CollectionTable(name = "switch_configurations", joinColumns = @JoinColumn(name = "settings_id"))
+    @Column(name = "switch_name")
+    private List<String> switchConfiguration;
+
+    private boolean uplinkRedundancyTest;
+    private boolean rebootDevices;
+}
+
+
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "service_verification_after")
+public class ServiceVerificationAfter {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ElementCollection
+    @CollectionTable(name = "after_service_check_commands", joinColumns = @JoinColumn(name = "verification_id"))
+    @Column(name = "command")
+    private List<String> serviceCheckCommands;
+
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "verification_after_id")
+    private List<NormalDeterminationCriteria> normalDeterminationCriteria;
+}
+
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "normal_determination_criteria")
+public class NormalDeterminationCriteria {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String criteria;
+
+    @Column(name = "criteria_condition") // avoid reserved keyword
+    private String condition;
+}
+
+
+
+
+
