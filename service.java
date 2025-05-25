@@ -23,4 +23,15 @@ public class FlowConfigService {
                 .data(basicInfo)
                 .build();
     }
+
+    public List<FlowConfigBasicInfo> getAllFlowConfigs() {
+    return flowConfigRepository.findAll()
+            .stream()
+            .map(flowConfigMapper::toBasicInfo)
+            .collect(Collectors.toList());
+}
+
+
+    
+
 }
