@@ -40,6 +40,28 @@ public FlowConfigFullResponseDTO getFlowConfigById(Long id) {
             .build();
 }
 
+
+    public FlowConfigResponseDTO updateFlowConfig(Long id, FlowConfigRequestDTO requestDTO) {
+    FlowConfig existing = flowConfigRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Flow configuration not found"));
+
+    // Overwrite fields with updated data
+    FlowConfigDataDTO newData = requestDTO.getData();
+    FlowConfig updated = flowConfigMapper.toEntity(newData);
+    updated.setId(existing.getId()); // preserve ID
+
+    // Save updated config
+    FlowConfig saved = flowConfigRepository.save(updated);
+
+    // Return response with basic info
+    FlowConfigBasicInfo basicInfo = flowConfigMapper.toBasicInfo(saved);
+    return FlowConfigResponseDTO.builder()
+            .success(true)
+            .message("Flow configuration updated successfully.")
+            .data(basicInfo)
+            .build();
+}
+
     
 
 }
