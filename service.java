@@ -31,6 +31,14 @@ public class FlowConfigService {
             .collect(Collectors.toList());
 }
 
+public FlowConfigFullResponseDTO getFlowConfigById(Long id) {
+    FlowConfig entity = flowConfigRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Flow configuration not found"));
+
+    return FlowConfigFullResponseDTO.builder()
+            .data(flowConfigMapper.toDataDTO(entity))
+            .build();
+}
 
     
 
