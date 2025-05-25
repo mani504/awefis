@@ -1,0 +1,14 @@
+public interface FlowConfigRepository extends JpaRepository<FlowConfig, Long> {
+}
+
+public interface ServiceVerificationBeforeRepository extends JpaRepository<ServiceVerificationBefore, Long> {
+}
+
+public interface ConfigSettingsRepository extends JpaRepository<ConfigSettings, Long> {
+}
+
+public interface ServiceVerificationAfterRepository extends JpaRepository<ServiceVerificationAfter, Long> {
+}
+
+public interface NormalDeterminationCriteriaRepository extends JpaRepository<NormalDeterminationCriteria, Long> {
+}
