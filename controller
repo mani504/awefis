@@ -1,0 +1,13 @@
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/api/flow-config")
+public class FlowConfigController {
+
+    private final FlowConfigService flowConfigService;
+
+    @PostMapping
+    public ResponseEntity<FlowConfigResponseDTO> createFlowConfig(@RequestBody FlowConfigRequestDTO requestDTO) {
+        FlowConfigResponseDTO response = flowConfigService.createFlowConfig(requestDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+}
