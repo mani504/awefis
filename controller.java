@@ -10,4 +10,11 @@ public class FlowConfigController {
         FlowConfigResponseDTO response = flowConfigService.createFlowConfig(requestDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
+
+    @GetMapping
+public ResponseEntity<List<FlowConfigBasicInfo>> getAllFlowConfigs() {
+    List<FlowConfigBasicInfo> list = flowConfigService.getAllFlowConfigs();
+    return ResponseEntity.ok(list);
+}
+
 }
