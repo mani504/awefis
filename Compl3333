@@ -1,0 +1,262 @@
+// DTOs
+
+// --- FlowConfigDataDto.java --- package com.example.dto.request;
+
+import lombok.*; import java.util.List;
+
+@Data @Builder @NoArgsConstructor @AllArgsConstructor public class FlowConfigDataDto { private String name; private List<TargetDeviceDto> targetDevices; private String email; private String description; private boolean scheduling; private String schedulingCron; private String createBy; private ServiceVerificationBeforeDto serviceVerificationBefore; private ConfigSettingsDto configSettings; private ServiceVerificationAfterDto serviceVerificationAfter; }
+
+@Data @Builder @NoArgsConstructor @AllArgsConstructor class TargetDeviceDto { private String id; private String name; }
+
+@Data @Builder @NoArgsConstructor @AllArgsConstructor class ServiceVerificationBeforeDto { private boolean configurationsBackup; private List<String> serviceCheckCommands; }
+
+@Data @Builder @NoArgsConstructor @AllArgsConstructor class ConfigSettingsDto { private List<String> switchConfiguration; private boolean uplinkRedundancyTest; private boolean rebootDevices; }
+
+@Data @Builder @NoArgsConstructor @AllArgsConstructor class ServiceVerificationAfterDto { private List<String> serviceCheckCommands; private List<NormalDeterminationCriteriaDto> normalDeterminationCriteria; }
+
+@Data @Builder @NoArgsConstructor @AllArgsConstructor class NormalDeterminationCriteriaDto { private String id; private String criteria; private String condition; }
+
+@Data @Builder @NoArgsConstructor @AllArgsConstructor class FlowConfigBasicInfo { private Long id; private String name; private String email; private String description; private boolean scheduling; private String schedulingCron; private String createBy; private String updatedAt; }
+
+@Data @Builder @NoArgsConstructor @AllArgsConstructor class GenericResponse<T> { private boolean success; private String message; private T data; }
+
+// ENTITIES
+
+// --- FlowConfig.java --- package com.example.entity.flow.flowConfig;
+
+import lombok.; import javax.persistence.; import java.time.LocalDateTime; import java.util.List;
+
+@Entity @Table(name = "flow_config") @Data @Builder @NoArgsConstructor @AllArgsConstructor public class FlowConfig {
+
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+private Long id;
+
+private String name;
+private String email;
+private String description;
+private boolean scheduling;
+private String schedulingCron;
+
+@Column(name = "create_by")
+private String createBy;
+
+@Column(name = "updated_at")
+private LocalDateTime updatedAt;
+
+@OneToMany(mappedBy = "flowConfig", cascade = CascadeType.ALL, orphanRemoval = true)
+private List<TargetDevice> targetDevices;
+
+@OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+private ServiceVerificationBefore serviceVerificationBefore;
+
+@OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+private ConfigSettings configSettings;
+
+@OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+private ServiceVerificationAfter serviceVerificationAfter;
+
+}
+
+@Entity @Table(name = "target_device") @Data @Builder @NoArgsConstructor @AllArgsConstructor class TargetDevice { @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
+
+private String targetId;
+private String name;
+
+@ManyToOne
+@JoinColumn(name = "flow_config_id")
+private FlowConfig flowConfig;
+
+}
+
+@Entity @Table(name = "service_verification_before") @Data @Builder @NoArgsConstructor @AllArgsConstructor class ServiceVerificationBefore {
+
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+private Long id;
+
+private boolean configurationsBackup;
+
+@ElementCollection
+private List<String> serviceCheckCommands;
+
+}
+
+@Entity @Table(name = "config_settings") @Data @Builder @NoArgsConstructor @AllArgsConstructor class ConfigSettings {
+
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+private Long id;
+
+@ElementCollection
+private List<String> switchConfiguration;
+
+private boolean uplinkRedundancyTest;
+private boolean rebootDevices;
+
+}
+
+@Entity @Table(name = "service_verification_after") @Data @Builder @NoArgsConstructor @AllArgsConstructor class ServiceVerificationAfter {
+
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+private Long id;
+
+@ElementCollection
+private List<String> serviceCheckCommands;
+
+@OneToMany(mappedBy = "flowConfig", cascade = CascadeType.ALL, orphanRemoval = true)
+private List<NormalDeterminationCriteria> normalDeterminationCriteria;
+
+}
+
+@Entity @Table(name = "normal_determination_criteria") @Data @Builder @NoArgsConstructor @AllArgsConstructor class NormalDeterminationCriteria { @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
+
+private String criteriaId;
+private String criteria;
+
+@Column(name = "condition_expr")
+private String condition;
+
+@ManyToOne
+@JoinColumn(name = "flow_config_id")
+private FlowConfig flowConfig;
+
+}
+
+// SERVICE
+
+// --- FlowConfigService.java --- package com.example.service;
+
+import com.example.dto.request.; import com.example.dto.response.FlowConfigBasicInfo; import com.example.entity.flow.flowConfig.; import com.example.mapper.FlowConfigMapper; import com.example.repository.FlowConfigRepository; import lombok.RequiredArgsConstructor; import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+
+@Service @RequiredArgsConstructor public class FlowConfigService {
+
+private final FlowConfigRepository flowConfigRepository;
+
+public FlowConfigBasicInfo saveFlowConfig(FlowConfigDataDto dto) {
+    FlowConfig entity = FlowConfigMapper.toEntity(dto);
+    entity.setUpdatedAt(LocalDateTime.now());
+    FlowConfig saved = flowConfigRepository.save(entity);
+    return FlowConfigMapper.toBasicInfo(saved);
+}
+
+}
+
+// MAPPER
+
+// --- FlowConfigMapper.java --- package com.example.mapper;
+
+import com.example.dto.request.; import com.example.dto.response.FlowConfigBasicInfo; import com.example.entity.flow.flowConfig.;
+
+import java.util.List; import java.util.stream.Collectors;
+
+public class FlowConfigMapper {
+
+public static FlowConfig toEntity(FlowConfigDataDto dto) {
+    FlowConfig flowConfig = FlowConfig.builder()
+            .name(dto.getName())
+            .email(dto.getEmail())
+            .description(dto.getDescription())
+            .scheduling(dto.isScheduling())
+            .schedulingCron(dto.getSchedulingCron())
+            .createBy(dto.getCreateBy())
+            .serviceVerificationBefore(toBefore(dto.getServiceVerificationBefore()))
+            .configSettings(toConfig(dto.getConfigSettings()))
+            .serviceVerificationAfter(toAfter(dto.getServiceVerificationAfter()))
+            .build();
+
+    List<TargetDevice> targetDevices = dto.getTargetDevices().stream()
+            .map(t -> TargetDevice.builder()
+                    .targetId(t.getId())
+                    .name(t.getName())
+                    .flowConfig(flowConfig)
+                    .build())
+            .collect(Collectors.toList());
+
+    List<NormalDeterminationCriteria> criteria = dto.getServiceVerificationAfter().getNormalDeterminationCriteria().stream()
+            .map(c -> NormalDeterminationCriteria.builder()
+                    .criteriaId(c.getId())
+                    .criteria(c.getCriteria())
+                    .condition(c.getCondition())
+                    .flowConfig(flowConfig)
+                    .build())
+            .collect(Collectors.toList());
+
+    flowConfig.setTargetDevices(targetDevices);
+    flowConfig.getServiceVerificationAfter().setNormalDeterminationCriteria(criteria);
+
+    return flowConfig;
+}
+
+public static ServiceVerificationBefore toBefore(ServiceVerificationBeforeDto dto) {
+    return ServiceVerificationBefore.builder()
+            .configurationsBackup(dto.isConfigurationsBackup())
+            .serviceCheckCommands(dto.getServiceCheckCommands())
+            .build();
+}
+
+public static ConfigSettings toConfig(ConfigSettingsDto dto) {
+    return ConfigSettings.builder()
+            .switchConfiguration(dto.getSwitchConfiguration())
+            .uplinkRedundancyTest(dto.isUplinkRedundancyTest())
+            .rebootDevices(dto.isRebootDevices())
+            .build();
+}
+
+public static ServiceVerificationAfter toAfter(ServiceVerificationAfterDto dto) {
+    return ServiceVerificationAfter.builder()
+            .serviceCheckCommands(dto.getServiceCheckCommands())
+            .build();
+}
+
+public static FlowConfigBasicInfo toBasicInfo(FlowConfig config) {
+    return FlowConfigBasicInfo.builder()
+            .id(config.getId())
+            .name(config.getName())
+            .email(config.getEmail())
+            .description(config.getDescription())
+            .scheduling(config.isScheduling())
+            .schedulingCron(config.getSchedulingCron())
+            .createBy(config.getCreateBy())
+            .updatedAt(config.getUpdatedAt().toString())
+            .build();
+}
+
+}
+
+// REPOSITORY
+
+// --- FlowConfigRepository.java --- package com.example.repository;
+
+import com.example.entity.flow.flowConfig.FlowConfig; import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface FlowConfigRepository extends JpaRepository<FlowConfig, Long> { }
+
+// CONTROLLER
+
+// --- FlowConfigController.java --- package com.example.controller;
+
+import com.example.dto.request.FlowConfigDataDto; import com.example.dto.response.FlowConfigBasicInfo; import com.example.dto.response.GenericResponse; import com.example.service.FlowConfigService; import lombok.RequiredArgsConstructor; import org.springframework.http.ResponseEntity; import org.springframework.web.bind.annotation.*;
+
+@RestController @RequestMapping("/api/flow-config") @RequiredArgsConstructor public class FlowConfigController {
+
+private final FlowConfigService flowConfigService;
+
+@PostMapping
+public ResponseEntity<GenericResponse<FlowConfigBasicInfo>> createFlowConfig(@RequestBody FlowConfigDataDto dto) {
+    FlowConfigBasicInfo savedInfo = flowConfigService.saveFlowConfig(dto);
+
+    GenericResponse<FlowConfigBasicInfo> response = GenericResponse.<FlowConfigBasicInfo>builder()
+            .success(true)
+            .message("Flow configuration saved successfully")
+            .data(savedInfo)
+            .build();
+
+    return ResponseEntity.ok(response);
+}
+
+}
+
