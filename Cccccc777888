@@ -1,0 +1,142 @@
+// --- FlowConfigService.java --- package com.example.service;
+
+import com.example.dto.FlowConfigBasicInfo; import com.example.dto.FlowConfigDataDto; import com.example.entity.FlowConfig; import com.example.mapper.FlowConfigMapper; import com.example.repository.FlowConfigRepository; import lombok.RequiredArgsConstructor; import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+
+@Service @RequiredArgsConstructor public class FlowConfigService {
+
+private final FlowConfigRepository flowConfigRepository;
+private final DeviceOrchestrationService deviceOrchestrationService;
+
+public FlowConfigBasicInfo saveFlowConfig(FlowConfigDataDto dto) {
+    // Map DTO to entity
+    FlowConfig flowConfig = FlowConfigMapper.toEntity(dto);
+
+    // Fetch device info & apply config before saving
+    deviceOrchestrationService.handleDeviceInfoAndApplyConfig(flowConfig);
+
+    // Set updated timestamp
+    flowConfig.setUpdatedAt(LocalDateTime.now());
+
+    // Save entity (cascades will handle all children)
+    FlowConfig saved = flowConfigRepository.save(flowConfig);
+
+    // Return only basic info
+    return FlowConfigMapper.toBasicInfo(saved);
+}
+
+}
+
+// --- DeviceOrchestrationService.java --- package com.example.service;
+
+import com.example.client.DeviceInfoClient; import com.example.client.ConfigGenClient; import com.example.dto.DeviceInfo; import com.example.dto.ApplyConfigResponse; import com.example.entity.FlowConfig; import com.example.entity.TargetDevice; import lombok.RequiredArgsConstructor; import org.springframework.stereotype.Service;
+
+import java.util.ArrayList; import java.util.List;
+
+@Service @RequiredArgsConstructor public class DeviceOrchestrationService {
+
+private final DeviceInfoClient deviceInfoClient;
+private final ConfigApplyService configApplyService;
+
+public void handleDeviceInfoAndApplyConfig(FlowConfig flowConfig) {
+    List<TargetDevice> targetDevices = flowConfig.getTargetDevices();
+    List<DeviceInfo> deviceInfos = new ArrayList<>();
+
+    for (TargetDevice device : targetDevices) {
+        DeviceInfo info = deviceInfoClient.getDeviceInfo(device.getName());
+        if (info != null) {
+            deviceInfos.add(info);
+        }
+    }
+
+    // Apply configuration for each device
+    for (DeviceInfo device : deviceInfos) {
+        configApplyService.applyConfiguration(device, flowConfig.getConfigSettings().getSwitchConfiguration());
+    }
+}
+
+}
+
+// --- DeviceInfoClient.java --- package com.example.client;
+
+import com.example.dto.DeviceInfo; import lombok.RequiredArgsConstructor; import org.springframework.stereotype.Component; import org.springframework.web.client.RestTemplate;
+
+@Component @RequiredArgsConstructor public class DeviceInfoClient {
+
+private final RestTemplate restTemplate;
+private static final String ORCHESTRATION_URL = "http://OrchestrationUrl/inventory/device/name/";
+
+public DeviceInfo getDeviceInfo(String deviceName) {
+    try {
+        return restTemplate.getForObject(ORCHESTRATION_URL + deviceName, DeviceInfo.class);
+    } catch (Exception e) {
+        System.err.println("Failed to fetch device info for: " + deviceName);
+        return null;
+    }
+}
+
+}
+
+// --- ConfigApplyService.java --- package com.example.service;
+
+import com.example.client.ConfigGenClient; import com.example.dto.*; import lombok.RequiredArgsConstructor; import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service @RequiredArgsConstructor public class ConfigApplyService {
+
+private final ConfigGenClient configGenClient;
+
+public List<ApplyConfigResponse> applyConfiguration(DeviceInfo device, List<String> switchConfig) {
+    List<InfoOfDevice> infoOfDevices = List.of(
+            new InfoOfDevice(device.getName(), device.getManagementIP())
+    );
+
+    String joinedCommands = String.join("\n", switchConfig);
+    ConfigValue configValue = new ConfigValue(joinedCommands, "", "", "Enter your custom config");
+    List<DataOfForm> dataOfForms = List.of(
+            new DataOfForm(configValue, "custom-config")
+    );
+
+    ApplyConfigRequest request = new ApplyConfigRequest(
+            infoOfDevices,
+            switchConfig,
+            dataOfForms,
+            "update_configuration",
+            false,
+            device.getModel(),
+            device.getVendor(),
+            List.of("custom-config")
+    );
+
+    return configGenClient.applyConfiguration(request);
+}
+
+}
+
+// --- ConfigGenClient.java --- package com.example.client;
+
+import com.example.dto.ApplyConfigRequest; import com.example.dto.ApplyConfigResponse; import lombok.RequiredArgsConstructor; import org.springframework.http.ResponseEntity; import org.springframework.stereotype.Component; import org.springframework.web.client.RestTemplate;
+
+import java.util.Arrays; import java.util.Collections; import java.util.List;
+
+@Component @RequiredArgsConstructor public class ConfigGenClient {
+
+private final RestTemplate restTemplate;
+private static final String APPLY_CONFIG_URL = "http://ConfigGen/apply-configuration";
+
+public List<ApplyConfigResponse> applyConfiguration(ApplyConfigRequest request) {
+    try {
+        ResponseEntity<ApplyConfigResponse[]> response = restTemplate.postForEntity(
+                APPLY_CONFIG_URL, request, ApplyConfigResponse[].class
+        );
+        return response.getBody() != null ? Arrays.asList(response.getBody()) : Collections.emptyList();
+    } catch (Exception e) {
+        System.err.println("Failed to call ConfigGen API: " + e.getMessage());
+        return Collections.emptyList();
+    }
+}
+
+}
+
