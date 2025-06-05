@@ -1,0 +1,137 @@
+// --- DeviceInfo.java --- package com.example.dto;
+
+import lombok.AllArgsConstructor; import lombok.Data; import lombok.NoArgsConstructor;
+
+@Data @NoArgsConstructor @AllArgsConstructor public class DeviceInfo { private String name; private String managementIP; private String model; private String vendor; }
+
+// --- InfoOfDevice.java --- package com.example.dto;
+
+import lombok.AllArgsConstructor; import lombok.Data; import lombok.NoArgsConstructor;
+
+@Data @NoArgsConstructor @AllArgsConstructor public class InfoOfDevice { private String device_name; private String target_ip; }
+
+// --- ConfigValue.java --- package com.example.dto;
+
+import lombok.AllArgsConstructor; import lombok.Data; import lombok.NoArgsConstructor;
+
+@Data @NoArgsConstructor @AllArgsConstructor public class ConfigValue { private String data; private String rule; private String error; private String hint; }
+
+// --- DataOfForm.java --- package com.example.dto;
+
+import lombok.AllArgsConstructor; import lombok.Data; import lombok.NoArgsConstructor;
+
+@Data @NoArgsConstructor @AllArgsConstructor public class DataOfForm { private ConfigValue Config_Value; private String templateIndex; }
+
+// --- ApplyConfigRequest.java --- package com.example.dto;
+
+import lombok.AllArgsConstructor; import lombok.Data; import lombok.NoArgsConstructor;
+
+import java.util.List;
+
+@Data @NoArgsConstructor @AllArgsConstructor public class ApplyConfigRequest { private List<InfoOfDevice> info_of_devices; private List<String> generic_configuration; private List<DataOfForm> data_of_forms; private String config_type; private boolean user_defined; private String model; private String vendor; private List<String> used_form_names; }
+
+// --- ApplyConfigResponse.java --- package com.example.dto;
+
+import lombok.AllArgsConstructor; import lombok.Data; import lombok.NoArgsConstructor;
+
+@Data @NoArgsConstructor @AllArgsConstructor public class ApplyConfigResponse { private String device_configuration_id; private String target_ip; }
+
+// --- DeviceInfoClient.java --- package com.example.client;
+
+import com.example.dto.DeviceInfo; import lombok.RequiredArgsConstructor; import org.springframework.stereotype.Component; import org.springframework.web.client.RestTemplate;
+
+@Component @RequiredArgsConstructor public class DeviceInfoClient {
+
+private final RestTemplate restTemplate;
+private static final String DEVICE_INFO_URL = "http://OrchestrationUrl/inventory/device/name/";
+
+public DeviceInfo fetchDeviceInfoByName(String name) {
+    return restTemplate.getForObject(DEVICE_INFO_URL + name, DeviceInfo.class);
+}
+
+}
+
+// --- ConfigApplyService.java --- package com.example.service;
+
+import com.example.dto.*; import lombok.RequiredArgsConstructor; import org.springframework.http.ResponseEntity; import org.springframework.stereotype.Service; import org.springframework.web.client.RestTemplate;
+
+import java.util.Arrays; import java.util.Collections; import java.util.List;
+
+@Service @RequiredArgsConstructor public class ConfigApplyService {
+
+private final RestTemplate restTemplate;
+private static final String APPLY_CONFIG_URL = "http://ConfigGen/apply-configuration";
+
+public List<ApplyConfigResponse> applyConfiguration(DeviceInfo device, List<String> switchConfig) {
+    List<InfoOfDevice> infoOfDevices = List.of(
+            new InfoOfDevice(device.getName(), device.getManagementIP())
+    );
+
+    String joinedCommands = String.join("\n", switchConfig);
+    ConfigValue configValue = new ConfigValue(joinedCommands, "", "", "Enter your custom config");
+    List<DataOfForm> dataOfForms = List.of(
+            new DataOfForm(configValue, "custom-config")
+    );
+
+    ApplyConfigRequest request = new ApplyConfigRequest(
+            infoOfDevices,
+            switchConfig,
+            dataOfForms,
+            "update_configuration",
+            false,
+            device.getModel(),
+            device.getVendor(),
+            List.of("custom-config")
+    );
+
+    try {
+        ResponseEntity<ApplyConfigResponse[]> response = restTemplate.postForEntity(
+                APPLY_CONFIG_URL, request, ApplyConfigResponse[].class
+        );
+        return response.getBody() != null
+                ? Arrays.asList(response.getBody())
+                : Collections.emptyList();
+
+    } catch (Exception e) {
+        System.err.println("Failed to apply config for device: " + device.getName());
+        e.printStackTrace();
+        return Collections.emptyList();
+    }
+}
+
+}
+
+// --- FlowConfigService.java (excerpt) --- package com.example.service;
+
+import com.example.client.DeviceInfoClient; import com.example.dto.DeviceInfo; import com.example.dto.ApplyConfigResponse; import com.example.entity.FlowConfig; import com.example.entity.TargetDevice; import com.example.repository.FlowConfigRepository; import com.example.mapper.FlowConfigMapper; import com.example.dto.FlowConfigBasicInfo; import com.example.dto.FlowConfigDataDto; import lombok.RequiredArgsConstructor; import org.springframework.stereotype.Service; import java.time.LocalDateTime; import java.util.ArrayList; import java.util.List;
+
+@Service @RequiredArgsConstructor public class FlowConfigService {
+
+private final FlowConfigRepository flowConfigRepository;
+private final DeviceInfoClient deviceInfoClient;
+private final ConfigApplyService configApplyService;
+
+public FlowConfigBasicInfo saveFlowConfig(FlowConfigDataDto dto) {
+    FlowConfig flowConfig = FlowConfigMapper.toEntity(dto);
+    flowConfig.setUpdatedAt(LocalDateTime.now());
+
+    List<DeviceInfo> deviceInfoList = new ArrayList<>();
+    for (TargetDevice td : flowConfig.getTargetDevices()) {
+        DeviceInfo info = deviceInfoClient.fetchDeviceInfoByName(td.getName());
+        deviceInfoList.add(info);
+    }
+
+    for (DeviceInfo deviceInfo : deviceInfoList) {
+        List<ApplyConfigResponse> responses = configApplyService.applyConfiguration(
+                deviceInfo,
+                flowConfig.getConfigSettings().getSwitchConfiguration()
+        );
+        // Optional: handle/store responses
+    }
+
+    FlowConfig saved = flowConfigRepository.save(flowConfig);
+    return FlowConfigMapper.toBasicInfo(saved);
+}
+
+}
+
