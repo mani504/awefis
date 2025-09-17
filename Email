@@ -1,0 +1,124 @@
+package com.example.email;
+
+import com.example.flow.FlowConfig;
+import com.example.flow.FlowConfigRepository;
+import com.example.flow.FlowConfigService;
+import com.example.smtp.SmtpConfig;
+import com.example.smtp.SmtpConfigRepository;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.mail.MailException;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
+import org.springframework.stereotype.Service;
+
+import javax.mail.internet.MimeMessage;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class EmailService {
+
+    private final SmtpConfigRepository smtpConfigRepo;
+    private final FlowConfigRepository flowConfigRepo;
+    private final FlowConfigService flowConfigService;
+
+    // Cache per flowConfigId
+    private final Cache<Long, EmailSendStats> emailStatsCache = Caffeine.newBuilder()
+            .expireAfterWrite(24, TimeUnit.HOURS)
+            .build();
+
+    // Per-flowConfig locks to avoid race conditions
+    private final ConcurrentHashMap<Long, Object> locks = new ConcurrentHashMap<>();
+
+    private static final int MAX_SENDS_PER_DAY = 5;
+    private static final int MIN_GAP_MINUTES = 30;
+
+    public String sendFlowConfigEmails(Long flowConfigId) {
+        SmtpConfig smtp = smtpConfigRepo.findTopByOrderByIdAsc()
+                .orElseThrow(() -> new IllegalStateException("SMTP configuration missing. Please update SMTP settings."));
+
+        FlowConfig flow = flowConfigRepo.findById(flowConfigId)
+                .orElseThrow(() -> new IllegalArgumentException("FlowConfig not found for id: " + flowConfigId));
+
+        List<String> recipients = flow.getEmails();
+        if (recipients == null || recipients.isEmpty()) {
+            log.warn("No recipients for FlowConfig id {}", flowConfigId);
+            return "No recipients configured for this flow. Email not sent.";
+        }
+
+        Object lock = locks.computeIfAbsent(flowConfigId, k -> new Object());
+        LocalDateTime now = LocalDateTime.now();
+
+        synchronized (lock) {
+            EmailSendStats stats = emailStatsCache.get(flowConfigId, k -> new EmailSendStats());
+
+            if (stats.getLastSentTime() != null) {
+                long minutesSinceLast = Duration.between(stats.getLastSentTime(), now).toMinutes();
+                if (minutesSinceLast < MIN_GAP_MINUTES) {
+                    long wait = MIN_GAP_MINUTES - minutesSinceLast;
+                    return String.format("Please wait %d minute(s) before sending another email for '%s'.", wait, flow.getName());
+                }
+            }
+
+            if (stats.getSentCount() >= MAX_SENDS_PER_DAY) {
+                return String.format("Daily sending limit reached for '%s'. (%d sends per 24 hours)", flow.getName(), MAX_SENDS_PER_DAY);
+            }
+
+            // Allowed to send — build mail sender and send
+            try {
+                JavaMailSenderImpl mailSender = buildMailSender(smtp);
+
+                MimeMessage mime = mailSender.createMimeMessage();
+                // using MimeMessage directly; plain text body
+                var helper = new org.springframework.mail.javamail.MimeMessageHelper(mime, false, "UTF-8");
+                helper.setTo(recipients.toArray(new String[0]));
+                helper.setSubject("Result diff of " + flow.getName());
+                helper.setText(flowConfigService.getResultDiffAct(flowConfigId), false);
+
+                mailSender.send(mime);
+
+                // update stats after successful send
+                stats.increment();
+                stats.setLastSentTime(now);
+                emailStatsCache.put(flowConfigId, stats);
+
+                log.info("Sent email batch for FlowConfig id {} to {} recipients (count today: {})",
+                        flowConfigId, recipients.size(), stats.getSentCount());
+
+                return String.format("Email successfully sent to %d recipient(s) for '%s'.", recipients.size(), flow.getName());
+            } catch (MailException me) {
+                log.error("Mail sending failed for FlowConfig id {}: {}", flowConfigId, me.getMessage(), me);
+                throw me; // controller will handle and return 5xx
+            } catch (Exception e) {
+                log.error("Unexpected error while sending email for FlowConfig id {}: {}", flowConfigId, e.getMessage(), e);
+                throw new RuntimeException("Failed to send email. Please try again later.");
+            }
+        }
+    }
+
+    private JavaMailSenderImpl buildMailSender(SmtpConfig s) {
+        JavaMailSenderImpl sender = new JavaMailSenderImpl();
+        sender.setHost(s.getHost());
+        sender.setPort(s.getPort());
+        sender.setUsername(s.getUsername());
+        sender.setPassword(s.getPassword());
+
+        Properties props = sender.getJavaMailProperties();
+        props.put("mail.transport.protocol", "smtp");
+        props.put("mail.smtp.auth", "true");
+        props.put("mail.smtp.starttls.enable", "true");
+        // timeouts (optional, useful in production)
+        props.put("mail.smtp.connectiontimeout", "10000");
+        props.put("mail.smtp.timeout", "10000");
+        props.put("mail.smtp.writetimeout", "10000");
+        return sender;
+    }
+}
