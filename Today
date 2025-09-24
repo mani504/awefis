@@ -1,0 +1,64 @@
+@Service
+public class FlowScheduler {
+
+    private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(4);
+    private final Map<Long, ScheduledFuture<?>> jobs = new ConcurrentHashMap<>();
+
+    private final FlowConfigRepository repository;
+    private final FlowConfigService flowConfigService;
+
+    public FlowScheduler(FlowConfigRepository repository,
+                         FlowConfigService flowConfigService) {
+        this.repository = repository;
+        this.flowConfigService = flowConfigService;
+    }
+
+    // Poll DB every 30s to sync configs
+    @Scheduled(fixedRate = 30_000)
+    public void syncJobs() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime window = now.plusMinutes(2);
+
+        List<FlowConfig> configs = repository.findUpcomingConfigs(now, window);
+
+        // Cancel jobs removed/updated in DB
+        jobs.keySet().removeIf(id -> 
+            configs.stream().noneMatch(cfg -> cfg.getId().equals(id))
+        );
+
+        // Schedule new jobs
+        for (FlowConfig cfg : configs) {
+            jobs.computeIfAbsent(cfg.getId(), k -> schedule(cfg));
+        }
+    }
+
+    private ScheduledFuture<?> schedule(FlowConfig cfg) {
+        long delay = Duration.between(LocalDateTime.now(), cfg.getScheduleTime()).toMillis();
+        delay = Math.max(delay, 0);
+
+        return executor.schedule(() -> {
+            try {
+                flowConfigService.launchAll(cfg.getId());
+                // (Optional) update status → COMPLETED
+            } catch (Exception e) {
+                // Proper logging
+                System.err.println("Job failed for config " + cfg.getId() + ": " + e.getMessage());
+            } finally {
+                jobs.remove(cfg.getId());
+            }
+        }, delay, TimeUnit.MILLISECONDS);
+    }
+}
+
+
+
+
+
+public interface FlowConfigRepository extends JpaRepository<FlowConfig, Long> {
+
+    @Query("SELECT f FROM FlowConfig f " +
+           "WHERE f.scheduleTime BETWEEN :now AND :future " +
+           "AND f.status = 'PENDING'")
+    List<FlowConfig> findUpcomingConfigs(@Param("now") LocalDateTime now,
+                                         @Param("future") LocalDateTime future);
+}
