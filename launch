@@ -1,0 +1,157 @@
+@Async
+    @Transactional
+    public CompletableFuture<Void> launchAll(long id) throws TemplateException, AppServerException, IOException, AppUserException {
+        log.info("Running launch-all-Async for id: {}", id);
+
+        clearLogFile(id);
+
+        FlowConfig flowConfig = flowConfigService.getFlowConfigEntityById(id);
+        if (flowConfig == null) {
+            log.warn("FlowConfig with ID {} not found", id);
+            return CompletableFuture.completedFuture(null);
+        }
+
+        // Check if simulation test is required
+        if (flowConfig.getConfigSettings() != null && flowConfig.getConfigSettings().isSimulationTest()) {
+            log.info("Simulation test is enabled for FlowConfig ID: {}", id);
+            flowConfigService.writeIoLog(id, "Simulation test is enabled for FlowConfig ID: " + id);
+
+            // Run simulation test
+            List<String> switchConfigurations = flowConfig.getConfigSettings().getSwitchConfiguration();
+
+            if (switchConfigurations == null || switchConfigurations.isEmpty()) {
+                String errorMessage = "Switch configurations are missing for simulation test";
+                log.error(errorMessage);
+                flowConfigService.writeIoLog(id, errorMessage);
+                throw new RuntimeException(errorMessage);
+            }
+
+            log.info("Starting simulation test for FlowConfig ID: {}", id);
+            flowConfigService.writeIoLog(id, "Starting simulation test for FlowConfig ID: " + id);
+
+            String simulationStatus = simulationService.simulateConfiguration(switchConfigurations);
+
+            if (!"SUCCESS".equals(simulationStatus)) {
+                String errorMessage = "Simulation Test Failed for FlowConfig ID: " + id + ". Status: " + simulationStatus;
+                log.error(errorMessage);
+                flowConfigService.writeIoLog(id, errorMessage);
+                flowConfigRepository.updateStatus(id, FlowConfig.Status.FAIL);
+                return CompletableFuture.completedFuture(null); // Early return
+            }
+
+            log.info("Simulation test completed successfully for FlowConfig ID: {}", id);
+            flowConfigService.writeIoLog(id, "Simulation test completed successfully for FlowConfig ID: " + id);
+        }
+
+        try {
+            FlowConfigService.updateStatusLaunch(id, FlowConfig.Status.IN_PROGRESS);
+            flowConfigService.writeIoLog(id, "Launch process started for FlowConfig ID: " + id);
+            // Step 1: Pre-Check
+            try {
+                flowConfigService.writeIoLog(id, "Starting Pre-Check stage for FlowConfig ID: " + id);
+                flowConfigService.updateStatusServiceVerificationPre(id, FlowConfig.Status.IN_PROGRESS);
+                flowConfigLaunchService.runPreCheck(id, "2", true);
+                flowConfigService.updateStatusServiceVerificationPre(id, FlowConfig.Status.SUCCESS);
+                flowConfigService.writeIoLog(id, "Pre-Check stage completed successfully for FlowConfig ID: " + id);
+            } catch (Exception ex) {
+                flowConfigService.updateStatusServiceVerificationPre(id, FlowConfig.Status.FAIL);
+                log.error("Exception during run pre check: {}", ex.getMessage());
+                flowConfigService.writeIoLog(id, "Pre-Check stage failed for FlowConfig ID: " + id + ". Error: " + ex.getMessage());
+                ex.printStackTrace();
+                throw ex;
+            }
+            log.info("Pre-check completed for ID: {}", id);
+
+            // Step 2: Update Switch Config
+            try {
+                flowConfigService.writeIoLog(id, "Starting Switch Config Update stage for FlowConfig ID: " + id);
+                flowConfigService.updateStatusConfigSetting(id, FlowConfig.Status.IN_PROGRESS);
+                flowConfigLaunchService.updateSwitchConfig(id, true);
+                flowConfigService.updateStatusConfigSetting(id, FlowConfig.Status.SUCCESS);
+                flowConfigService.writeIoLog(id, "Switch Config Update stage completed successfully for FlowConfig ID: " + id);
+            } catch (Exception ex) {
+                flowConfigService.updateStatusConfigSetting(id, FlowConfig.Status.FAIL);
+                log.error("Exception during updateSwitchConfig: {}", ex.getMessage());
+                flowConfigService.writeIoLog(id, "Switch Config Update stage failed for FlowConfig ID: " + id + ". Error: " + ex.getMessage());
+                ex.printStackTrace();
+                throw ex;
+            }
+            log.info("Switch config completed for ID: {}", id);
+
+            // Step 3: Prepare DTO for PostCheck
+            FlowConfigFullResponseDTO flowConfigDTO = flowConfigService.getFlowConfigById(id);
+            ServiceVerificationAfterDTO serviceVerificationAfter = flowConfigDTO.getData().getServiceVerificationAfter();
+
+            if (serviceVerificationAfter == null) {
+                log.warn("ServiceVerificationAfter is null for flowConfig ID: {}. Skipping post-check and result-diff.", id);
+                flowConfigService.writeIoLog(id, "ServiceVerificationAfter data is null. Skipping Post-Check and Result-Diff stages for FlowConfig ID: " + id);
+                // Mark these steps as NOT_EXECUTED since they could not be run.
+                flowConfigService.updateStatusServiceVerificationPost(id,
+                        FlowConfig.Status.NOT_EXECUTED);
+                flowConfigService.updateStatusResultDiff(id, FlowConfig.Status.NOT_EXECUTED);
+            } else {
+                FlowConfigPostCheckDataDTO dataDTO = FlowConfigPostCheckDataDTO.builder()
+                        .normalDeterminationCriteriaDtoList(serviceVerificationAfter.getNormalDeterminationCriteria())
+                        .build();
+
+                FlowConfigPostCheckRequestDTO postCheckRequestDTO = FlowConfigPostCheckRequestDTO.builder()
+                        .data(dataDTO)
+                        .build();
+
+                // Step 4: Run PostCheck
+                try {
+                    FlowConfigService.writeIoLog(id, "Starting Post-Check stage for FlowConfig ID: " + id);
+                    FlowConfigService.updateStatusServiceVerificationPost(id, FlowConfig.Status.IN_PROGRESS);
+                    flowConfigLaunchService.runPostCheck(id, postCheckRequestDTO, "2", true);
+                    FlowConfigService.updateStatusServiceVerificationPost(id, FlowConfig.Status.SUCCESS);
+                    flowConfigService.writeIoLog(id, "Post-Check stage completed successfully for FlowConfig ID: " + id);
+                } catch (Exception ex) {
+                    flowConfigService.updateStatusServiceVerificationPost(id, FlowConfig.Status.FAIL);
+                    log.error("Exception during runPostCheck: {}", ex.getMessage());
+                    flowConfigService.writeIoLog(id, "Post-Check stage failed for FlowConfig_ID: " + id + ". Error: " + ex.getMessage());
+                    ex.printStackTrace();
+                    throw ex;
+                }
+                log.info("Post-Check completed for ID: {}", id);
+
+                // Step 5: Run Result-diff
+                try {
+                    flowConfigService.writeIoLog(id, "Starting Result-Diff stage for FlowConfig ID: " + id);
+                    flowConfigService.updateStatusResultDiff(id, FlowConfig.Status.IN_PROGRESS);
+                    flowConfigLaunchService.processResultDiff(id, true);
+                    flowConfigService.updateStatusResultDiff(id, FlowConfig.Status.SUCCESS);
+                    flowConfigService.writeIoLog(id, "Result-Diff stage completed successfully for FlowConfig ID: " + id);
+                } catch (Exception ex) {
+                    flowConfigService.updateStatusResultDiff(id, FlowConfig.Status.FAIL);
+                    log.error("Exception during resultDiffAct: {}", ex.getMessage());
+                    flowConfigService.writeIoLog(id, "Result-Diff stage failed for FlowConfig ID: " + id + ".Error: " + ex.getMessage());
+                    ex.printStackTrace();
+                    throw ex;
+                }
+                log.info("Result diff completed for ID: {}", id);
+
+            }
+
+            // Success actions
+            // Step 6: All successful, update execution time
+            flowConfig.setExecuted(true);
+            flowConfig.setExecutedTime(LocalDateTime.now());
+            flowConfig.setStatusLaunch(FlowConfig.Status.SUCCESS);
+            flowConfigService.updateFlowConfigWithoutDeviceConfigs(id, flowConfig);
+            flowConfigService.writeIoLog(id, "Launch process completed successfully for FlowConfig ID: " + id);
+
+            log.debug("launchAll executed successfully for ID: {}", id);
+
+        } catch (Exception ex) {
+            flowConfig.setStatusLaunch(FlowConfig.Status.FAIL);
+            flowConfigService.updateFlowConfigWithoutDeviceConfigs(id, flowConfig);
+            log.error("Failed to reset flow status after failure for ID: {}", id);
+            flowConfigService.writeIoLog(id, "Launch process failed for FlowConfig ID: " + id + ". Error: " + ex.getMessage());
+            ex.printStackTrace();
+            throw ex;
+        }
+
+        return CompletableFuture.completedFuture(null);
+
+
+    }
