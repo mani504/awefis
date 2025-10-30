@@ -3,18 +3,18 @@
 public class FlowConfigLaunchService {
     
     private final FlowConfigService flowConfigService;
-    private final FlowConfigLaunchStageService stageService;
+    private final FlowConfigLaunchExecutor launchExecutor;
     private final SimulationService simulationService;
     private final FlowConfigRepository flowConfigRepository;
     private final TransactionTemplate transactionTemplate;
     
-    public FlowConfigLaunchService(FlowConfigService flowConfigService, 
-                                 FlowConfigLaunchStageService stageService,
+    public FlowConfigLaunchService(FlowConfigService flowConfigService,
+                                 FlowConfigLaunchExecutor launchExecutor,
                                  SimulationService simulationService,
                                  FlowConfigRepository flowConfigRepository,
                                  TransactionTemplate transactionTemplate) {
         this.flowConfigService = flowConfigService;
-        this.stageService = stageService;
+        this.launchExecutor = launchExecutor;
         this.simulationService = simulationService;
         this.flowConfigRepository = flowConfigRepository;
         this.transactionTemplate = transactionTemplate;
@@ -25,22 +25,18 @@ public class FlowConfigLaunchService {
         log.info("Running launch-all-Async for id: {}", id);
         
         return CompletableFuture.runAsync(() -> {
-            // Use REQUIRES_NEW to ensure fresh transaction for entire process
-            transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
             transactionTemplate.execute(status -> {
                 try {
                     executeLaunchProcess(id);
                     return null;
                 } catch (Exception e) {
                     status.setRollbackOnly();
-                    log.error("Launch process failed for ID: {}", id, e);
                     throw new RuntimeException("Launch process failed for ID: " + id, e);
                 }
             });
         });
     }
     
-    // This method runs within the main transaction
     private void executeLaunchProcess(long id) throws Exception {
         clearLogFile(id);
         
@@ -98,24 +94,99 @@ public class FlowConfigLaunchService {
         updateLaunchStatus(id, FlowConfig.Status.IN_PROGRESS, "Launch process started for FlowConfig ID: " + id);
         
         try {
-            // Execute stages - these should NOT have @Transactional
-            stageService.executePreCheckStage(id);
-            stageService.executeSwitchConfigStage(id);
+            // Execute stages
+            executePreCheckStage(id);
+            executeSwitchConfigStage(id);
             
             if (hasPostCheckData(id)) {
-                stageService.executePostCheckStage(id);
-                stageService.executeResultDiffStage(id);
+                executePostCheckStage(id);
+                executeResultDiffStage(id);
             } else {
                 handleMissingPostCheckData(id);
             }
             
-            // Final success processing - part of main transaction
+            // Final success processing
             completeSuccessfulLaunch(id, flowConfig);
             
         } catch (Exception ex) {
             handleLaunchFailure(id, flowConfig, ex);
             throw ex;
         }
+    }
+    
+    private void executePreCheckStage(long id) throws Exception {
+        flowConfigService.writeToLog(id, "Starting Pre-Check stage for FlowConfig ID: " + id);
+        flowConfigService.updateStatusServiceVerificationPre(id, FlowConfig.Status.IN_PROGRESS);
+        
+        try {
+            launchExecutor.runPreCheck(id, "2", true);
+            flowConfigService.updateStatusServiceVerificationPre(id, FlowConfig.Status.SUCCESS);
+            flowConfigService.writeToLog(id, "Pre-Check stage completed successfully for FlowConfig ID: " + id);
+        } catch (Exception ex) {
+            flowConfigService.updateStatusServiceVerificationPre(id, FlowConfig.Status.FAIL);
+            flowConfigService.writeToLog(id, "Pre-Check stage failed for FlowConfig ID: " + id + ". Error: " + ex.getMessage());
+            throw ex;
+        }
+    }
+    
+    private void executeSwitchConfigStage(long id) throws Exception {
+        flowConfigService.writeToLog(id, "Starting Switch Config Update stage for FlowConfig ID: " + id);
+        flowConfigService.updateStatusConfigSetting(id, FlowConfig.Status.IN_PROGRESS);
+        
+        try {
+            launchExecutor.updateSwitchConfig(id, true);
+            flowConfigService.updateStatusConfigSetting(id, FlowConfig.Status.SUCCESS);
+            flowConfigService.writeToLog(id, "Switch Config Update stage completed successfully for FlowConfig ID: " + id);
+        } catch (Exception ex) {
+            flowConfigService.updateStatusConfigSetting(id, FlowConfig.Status.FAIL);
+            flowConfigService.writeToLog(id, "Switch Config Update stage failed for FlowConfig ID: " + id + ". Error: " + ex.getMessage());
+            throw ex;
+        }
+    }
+    
+    private void executePostCheckStage(long id) throws Exception {
+        FlowConfigPostCheckRequestDTO postCheckRequestDTO = buildPostCheckRequest(id);
+        
+        flowConfigService.writeToLog(id, "Starting Post-Check stage for FlowConfig ID: " + id);
+        flowConfigService.updateStatusServiceVerificationPost(id, FlowConfig.Status.IN_PROGRESS);
+        
+        try {
+            launchExecutor.runPostCheck(id, postCheckRequestDTO, "2", true);
+            flowConfigService.updateStatusServiceVerificationPost(id, FlowConfig.Status.SUCCESS);
+            flowConfigService.writeToLog(id, "Post-Check stage completed successfully for FlowConfig ID: " + id);
+        } catch (Exception ex) {
+            flowConfigService.updateStatusServiceVerificationPost(id, FlowConfig.Status.FAIL);
+            flowConfigService.writeToLog(id, "Post-Check stage failed for FlowConfig ID: " + id + ". Error: " + ex.getMessage());
+            throw ex;
+        }
+    }
+    
+    private void executeResultDiffStage(long id) throws Exception {
+        flowConfigService.writeToLog(id, "Starting Result-Diff stage for FlowConfig ID: " + id);
+        flowConfigService.updateStatusResultDiff(id, FlowConfig.Status.IN_PROGRESS);
+        
+        try {
+            launchExecutor.processResultDiff(id, true);
+            flowConfigService.updateStatusResultDiff(id, FlowConfig.Status.SUCCESS);
+            flowConfigService.writeToLog(id, "Result-Diff stage completed successfully for FlowConfig ID: " + id);
+        } catch (Exception ex) {
+            flowConfigService.updateStatusResultDiff(id, FlowConfig.Status.FAIL);
+            flowConfigService.writeToLog(id, "Result-Diff stage failed for FlowConfig ID: " + id + ". Error: " + ex.getMessage());
+            throw ex;
+        }
+    }
+    
+    private FlowConfigPostCheckRequestDTO buildPostCheckRequest(long id) {
+        FlowConfigFullResponseDTO flowConfigDTO = flowConfigService.getFlowConfigById(id);
+        ServiceVerificationAfterDTO serviceVerificationAfter = flowConfigDTO.getData().getServiceVerificationAfter();
+        
+        FlowConfigPostCheckDataDTO dataDTO = FlowConfigPostCheckDataDTO.builder()
+                .normalDeterminationCriteriaDtoList(serviceVerificationAfter.getNormalDeterminationCriteria())
+                .build();
+        
+        return FlowConfigPostCheckRequestDTO.builder()
+                .data(dataDTO)
+                .build();
     }
     
     private boolean hasPostCheckData(long id) {
@@ -127,7 +198,6 @@ public class FlowConfigLaunchService {
         log.warn("ServiceVerificationAfter is null for flowConfig ID: {}. Skipping post-check and result-diff.", id);
         flowConfigService.writeToLog(id, "ServiceVerificationAfter data is null. Skipping Post-Check and Result-Diff stages");
         
-        // These updates are part of the main transaction
         flowConfigService.updateStatusServiceVerificationPost(id, FlowConfig.Status.NOT_EXECUTED);
         flowConfigService.updateStatusResultDiff(id, FlowConfig.Status.NOT_EXECUTED);
     }
