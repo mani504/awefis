@@ -1,0 +1,66 @@
+@Service
+@Slf4j
+public class FlowConfigService {
+    
+    private final FlowConfigRepository flowConfigRepository;
+    
+    public FlowConfigService(FlowConfigRepository flowConfigRepository) {
+        this.flowConfigRepository = flowConfigRepository;
+    }
+    
+    // Add @Transactional ONLY to status update methods
+    @Transactional
+    public void updateStatusLaunch(Long id, FlowConfig.Status newStatus) {
+        FlowConfig flowConfig = flowConfigRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("FlowConfig not found with ID: " + id));
+        flowConfig.setStatusLaunch(newStatus);
+        // No need to call save() - will be flushed by transaction
+    }
+    
+    @Transactional
+    public void updateStatusServiceVerificationPre(Long id, FlowConfig.Status newStatus) {
+        FlowConfig flowConfig = flowConfigRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("FlowConfig not found with ID: " + id));
+        flowConfig.setStatusServiceVerificationPre(newStatus);
+    }
+    
+    @Transactional
+    public void updateStatusConfigSetting(Long id, FlowConfig.Status newStatus) {
+        FlowConfig flowConfig = flowConfigRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("FlowConfig not found with ID: " + id));
+        flowConfig.setStatusConfigSetting(newStatus);
+    }
+    
+    @Transactional
+    public void updateStatusServiceVerificationPost(Long id, FlowConfig.Status newStatus) {
+        FlowConfig flowConfig = flowConfigRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("FlowConfig not found with ID: " + id));
+        flowConfig.setStatusServiceVerificationPost(newStatus);
+    }
+    
+    @Transactional
+    public void updateStatusResultDiff(Long id, FlowConfig.Status newStatus) {
+        FlowConfig flowConfig = flowConfigRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("FlowConfig not found with ID: " + id));
+        flowConfig.setStatusResultDiff(newStatus);
+    }
+    
+    @Transactional
+    public void updateFlowConfigWithoutDeviceConfigs(long id, FlowConfig flowConfig) {
+        // Your existing implementation - keep it as is
+    }
+    
+    // Keep all your other methods AS IS without @Transactional
+    public FlowConfig getFlowConfigEntityById(long id) {
+        return flowConfigRepository.findById(id).orElse(null);
+    }
+    
+    public void writeToLog(long id, String message) {
+        // Your existing implementation
+    }
+    
+    public FlowConfigFullResponseDTO getFlowConfigById(long id) {
+        // Your existing implementation
+        return null; // placeholder
+    }
+}
