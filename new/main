@@ -1,0 +1,157 @@
+@Service
+@Slf4j
+public class FlowConfigLaunchService {
+    
+    private final FlowConfigService flowConfigService;
+    private final FlowConfigLaunchStageService stageService;
+    private final SimulationService simulationService;
+    private final FlowConfigRepository flowConfigRepository;
+    private final TransactionTemplate transactionTemplate;
+    
+    public FlowConfigLaunchService(FlowConfigService flowConfigService, 
+                                 FlowConfigLaunchStageService stageService,
+                                 SimulationService simulationService,
+                                 FlowConfigRepository flowConfigRepository,
+                                 TransactionTemplate transactionTemplate) {
+        this.flowConfigService = flowConfigService;
+        this.stageService = stageService;
+        this.simulationService = simulationService;
+        this.flowConfigRepository = flowConfigRepository;
+        this.transactionTemplate = transactionTemplate;
+    }
+    
+    @Async("launchTaskExecutor")
+    public CompletableFuture<Void> launchAll(long id) throws TemplateException, AppServerException, IOException, AppUserException {
+        log.info("Running launch-all-Async for id: {}", id);
+        
+        return CompletableFuture.runAsync(() -> {
+            // Use REQUIRES_NEW to ensure fresh transaction for entire process
+            transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+            transactionTemplate.execute(status -> {
+                try {
+                    executeLaunchProcess(id);
+                    return null;
+                } catch (Exception e) {
+                    status.setRollbackOnly();
+                    log.error("Launch process failed for ID: {}", id, e);
+                    throw new RuntimeException("Launch process failed for ID: " + id, e);
+                }
+            });
+        });
+    }
+    
+    // This method runs within the main transaction
+    private void executeLaunchProcess(long id) throws Exception {
+        clearLogFile(id);
+        
+        FlowConfig flowConfig = validateAndGetFlowConfig(id);
+        
+        if (isSimulationRequired(flowConfig)) {
+            executeSimulationTest(id, flowConfig);
+        }
+        
+        executeLaunchStages(id, flowConfig);
+    }
+    
+    private FlowConfig validateAndGetFlowConfig(long id) {
+        FlowConfig flowConfig = flowConfigService.getFlowConfigEntityById(id);  
+        if (flowConfig == null) {  
+            throw new RuntimeException("FlowConfig with ID " + id + " not found");
+        }  
+        return flowConfig;
+    }
+    
+    private boolean isSimulationRequired(FlowConfig flowConfig) {
+        return flowConfig.getConfigSettings() != null && 
+               flowConfig.getConfigSettings().isSimulationTest();
+    }
+    
+    private void executeSimulationTest(long id, FlowConfig flowConfig) {
+        log.info("Simulation test is enabled for FlowConfig ID: {}", id);
+        flowConfigService.writeToLog(id, "Simulation test is enabled for FlowConfig ID: " + id);
+        
+        List<String> switchConfigurations = flowConfig.getConfigSettings().getSwitchConfiguration();
+        
+        if (switchConfigurations == null || switchConfigurations.isEmpty()) {
+            String errorMessage = "Switch configurations are missing for simulation test";
+            flowConfigService.writeToLog(id, errorMessage);
+            throw new RuntimeException(errorMessage);
+        }
+        
+        log.info("Starting simulation test for FlowConfig ID: {}", id);
+        flowConfigService.writeToLog(id, "Starting simulation test for FlowConfig ID: " + id);
+        
+        String simulationStatus = simulationService.simulateConfiguration(switchConfigurations);
+        
+        if (!"SUCCESS".equals(simulationStatus)) {
+            String errorMessage = "Simulation Test Failed for FlowConfig ID: " + id + ". Status: " + simulationStatus;
+            flowConfigService.writeToLog(id, errorMessage);
+            throw new RuntimeException(errorMessage);
+        }
+        
+        log.info("Simulation test completed successfully for FlowConfig ID: {}", id);
+        flowConfigService.writeToLog(id, "Simulation test completed successfully for FlowConfig ID: " + id);
+    }
+    
+    private void executeLaunchStages(long id, FlowConfig flowConfig) throws Exception {
+        // This status update is part of the main transaction
+        updateLaunchStatus(id, FlowConfig.Status.IN_PROGRESS, "Launch process started for FlowConfig ID: " + id);
+        
+        try {
+            // Execute stages - these should NOT have @Transactional
+            stageService.executePreCheckStage(id);
+            stageService.executeSwitchConfigStage(id);
+            
+            if (hasPostCheckData(id)) {
+                stageService.executePostCheckStage(id);
+                stageService.executeResultDiffStage(id);
+            } else {
+                handleMissingPostCheckData(id);
+            }
+            
+            // Final success processing - part of main transaction
+            completeSuccessfulLaunch(id, flowConfig);
+            
+        } catch (Exception ex) {
+            handleLaunchFailure(id, flowConfig, ex);
+            throw ex;
+        }
+    }
+    
+    private boolean hasPostCheckData(long id) {
+        FlowConfigFullResponseDTO flowConfigDTO = flowConfigService.getFlowConfigById(id);
+        return flowConfigDTO.getData().getServiceVerificationAfter() != null;
+    }
+    
+    private void handleMissingPostCheckData(long id) {
+        log.warn("ServiceVerificationAfter is null for flowConfig ID: {}. Skipping post-check and result-diff.", id);
+        flowConfigService.writeToLog(id, "ServiceVerificationAfter data is null. Skipping Post-Check and Result-Diff stages");
+        
+        // These updates are part of the main transaction
+        flowConfigService.updateStatusServiceVerificationPost(id, FlowConfig.Status.NOT_EXECUTED);
+        flowConfigService.updateStatusResultDiff(id, FlowConfig.Status.NOT_EXECUTED);
+    }
+    
+    private void completeSuccessfulLaunch(long id, FlowConfig flowConfig) {
+        flowConfig.setExecuted(true);
+        flowConfig.setExecutedTime(LocalDateTime.now());
+        flowConfig.setStatusLaunch(FlowConfig.Status.SUCCESS);
+        flowConfigService.updateFlowConfigWithoutDeviceConfigs(id, flowConfig);
+        flowConfigService.writeToLog(id, "Launch process completed successfully for FlowConfig ID: " + id);
+    }
+    
+    private void handleLaunchFailure(long id, FlowConfig flowConfig, Exception ex) {
+        flowConfig.setStatusLaunch(FlowConfig.Status.FAIL);
+        flowConfigService.updateFlowConfigWithoutDeviceConfigs(id, flowConfig);
+        flowConfigService.writeToLog(id, "Launch process failed for FlowConfig ID: " + id + ". Error: " + ex.getMessage());
+    }
+    
+    private void updateLaunchStatus(long id, FlowConfig.Status status, String logMessage) {
+        flowConfigService.updateStatusLaunch(id, status);
+        flowConfigService.writeToLog(id, logMessage);
+    }
+    
+    private void clearLogFile(long id) {
+        // Your existing implementation
+    }
+}
