@@ -1,98 +1,24 @@
 @Service
 @Slf4j
-public class FlowConfigLaunchStageService {
+public class FlowConfigLaunchExecutor {
     
-    private final FlowConfigService flowConfigService;
-    private final FlowConfigLaunchExecutor launchExecutor;
-    
-    public FlowConfigLaunchStageService(FlowConfigService flowConfigService,
-                                      FlowConfigLaunchExecutor launchExecutor) {
-        this.flowConfigService = flowConfigService;
-        this.launchExecutor = launchExecutor;
+    // Remove @Transactional from all these methods
+    public void runPreCheck(long id, String version, boolean async) {
+        // Your existing runPreCheck implementation WITHOUT @Transactional
     }
     
-    // NO @Transactional here - stages run in main transaction
-    public void executePreCheckStage(long id) throws Exception {
-        executeStage(
-            id,
-            "Pre-Check",
-            () -> flowConfigService.updateStatusServiceVerificationPre(id, FlowConfig.Status.IN_PROGRESS),
-            () -> launchExecutor.runPreCheck(id, "2", true),
-            () -> flowConfigService.updateStatusServiceVerificationPre(id, FlowConfig.Status.SUCCESS),
-            (ex) -> flowConfigService.updateStatusServiceVerificationPre(id, FlowConfig.Status.FAIL)
-        );
+    // Remove @Transactional from this method
+    public void updateSwitchConfig(long id, boolean async) {
+        // Your existing updateSwitchConfig implementation WITHOUT @Transactional  
     }
     
-    public void executeSwitchConfigStage(long id) throws Exception {
-        executeStage(
-            id,
-            "Switch Config Update",
-            () -> flowConfigService.updateStatusConfigSetting(id, FlowConfig.Status.IN_PROGRESS),
-            () -> launchExecutor.updateSwitchConfig(id, true),
-            () -> flowConfigService.updateStatusConfigSetting(id, FlowConfig.Status.SUCCESS),
-            (ex) -> flowConfigService.updateStatusConfigSetting(id, FlowConfig.Status.FAIL)
-        );
+    // Remove @Transactional from this method
+    public void runPostCheck(long id, FlowConfigPostCheckRequestDTO request, String version, boolean async) {
+        // Your existing runPostCheck implementation WITHOUT @Transactional
     }
     
-    public void executePostCheckStage(long id) throws Exception {
-        FlowConfigPostCheckRequestDTO postCheckRequestDTO = buildPostCheckRequest(id);
-        
-        executeStage(
-            id,
-            "Post-Check",
-            () -> flowConfigService.updateStatusServiceVerificationPost(id, FlowConfig.Status.IN_PROGRESS),
-            () -> launchExecutor.runPostCheck(id, postCheckRequestDTO, "2", true),
-            () -> flowConfigService.updateStatusServiceVerificationPost(id, FlowConfig.Status.SUCCESS),
-            (ex) -> flowConfigService.updateStatusServiceVerificationPost(id, FlowConfig.Status.FAIL)
-        );
-    }
-    
-    public void executeResultDiffStage(long id) throws Exception {
-        executeStage(
-            id,
-            "Result-Diff",
-            () -> flowConfigService.updateStatusResultDiff(id, FlowConfig.Status.IN_PROGRESS),
-            () -> launchExecutor.processResultDiff(id, true),
-            () -> flowConfigService.updateStatusResultDiff(id, FlowConfig.Status.SUCCESS),
-            (ex) -> flowConfigService.updateStatusResultDiff(id, FlowConfig.Status.FAIL)
-        );
-    }
-    
-    private void executeStage(long id, String stageName, 
-                            Runnable preExecute, 
-                            Executable stageLogic,
-                            Runnable onSuccess,
-                            Consumer<Exception> onError) throws Exception {
-        
-        flowConfigService.writeToLog(id, "Starting " + stageName + " stage for FlowConfig ID: " + id);
-        preExecute.run();
-        
-        try {
-            stageLogic.execute();
-            onSuccess.run();
-            flowConfigService.writeToLog(id, stageName + " stage completed successfully for FlowConfig ID: " + id);
-        } catch (Exception ex) {
-            onError.accept(ex);
-            flowConfigService.writeToLog(id, stageName + " stage failed for FlowConfig ID: " + id + ". Error: " + ex.getMessage());
-            throw ex;
-        }
-    }
-    
-    private FlowConfigPostCheckRequestDTO buildPostCheckRequest(long id) {
-        FlowConfigFullResponseDTO flowConfigDTO = flowConfigService.getFlowConfigById(id);
-        ServiceVerificationAfterDTO serviceVerificationAfter = flowConfigDTO.getData().getServiceVerificationAfter();
-        
-        FlowConfigPostCheckDataDTO dataDTO = FlowConfigPostCheckDataDTO.builder()
-                .normalDeterminationCriteriaDtoList(serviceVerificationAfter.getNormalDeterminationCriteria())
-                .build();
-        
-        return FlowConfigPostCheckRequestDTO.builder()
-                .data(dataDTO)
-                .build();
-    }
-    
-    @FunctionalInterface
-    private interface Executable {
-        void execute() throws Exception;
+    // Remove @Transactional from this method
+    public void processResultDiff(long id, boolean async) {
+        // Your existing processResultDiff implementation WITHOUT @Transactional
     }
 }
