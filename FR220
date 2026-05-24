@@ -1,0 +1,259 @@
+HLD – FR220
+
+SDN System should replace with last applied config if any manual config applied
+
+---
+
+1. Objective
+
+Enable SDN System to automatically restore the previously applied SDN configuration when unauthorized/manual configuration changes are detected on a device operating in Strict Configuration mode.
+
+This feature ensures:
+
+- configuration consistency
+- SDN-controlled device state
+- automatic remediation of manual changes
+
+---
+
+2. Background
+
+As part of Strict Configuration framework:
+
+- FR190 introduces manual configuration detection
+- FR200 introduces config change event ingestion through syslog
+- FR210 introduces configuration comparison capability
+
+Currently, even if manual configuration changes are detected, SDN system does not automatically restore the expected configuration state.
+
+As a result:
+
+- devices may remain in drifted state
+- operational consistency may be affected
+- unauthorized configuration may continue to exist
+
+---
+
+3. Proposed Solution
+
+Introduce automatic configuration remediation capability in SDN System.
+
+When manual configuration is detected:
+
+1. SDN identifies configuration drift
+2. Previously applied SDN configuration is retrieved
+3. Remediation workflow is triggered
+4. Last valid SDN configuration is reapplied to device
+5. Restoration status is tracked
+6. Alarm and audit entries are generated
+
+---
+
+4. Scope
+
+In Scope
+
+- Manual configuration remediation
+- Retrieval of previously applied configuration
+- Automated config reapply workflow
+- Restoration status tracking
+- Alarm generation
+- Audit logging
+
+Out of Scope
+
+- Partial config merge
+- Intelligent conflict resolution
+- Multi-version rollback strategy
+- Vendor-specific optimization logic
+
+---
+
+5. High Level Architecture
+
++-----------------------------+
+| Config Comparator Service   |
++-----------------------------+
+         |
+         | Config Difference Detected
+         v
++-----------------------------+
+| Remediation Controller      |
++-----------------------------+
+         |
+ +-------+------------------+
+ |                          |
+ v                          v
++----------------+   +----------------------+
+| Previous SDN   |   | Device Inventory     |
+| Config Store   |   | & Connectivity       |
++----------------+   +----------------------+
+         |                          |
+         +------------+-------------+
+                      |
+                      v
+            Config Reapply Workflow
+                      |
+          +-----------+-----------+
+          |                       |
+          v                       v
+      Reapply Success       Reapply Failure
+          |                       |
+          v                       v
+     Clear Alarm           Raise Critical Alarm
+
+---
+
+6. Component Details
+
+6.1 Remediation Controller
+
+Responsible for:
+
+- orchestrating remediation workflow
+- validating remediation eligibility
+- initiating config restoration
+- tracking remediation result
+
+6.2 Previous SDN Config Store
+
+Stores:
+
+- last valid SDN applied configuration
+- configuration version history
+- remediation candidate configuration
+
+6.3 Config Reapply Workflow
+
+Responsible for:
+
+- pushing configuration to device
+- monitoring apply status
+- handling retry scenarios
+- returning remediation result
+
+6.4 Device Inventory & Connectivity Service
+
+Responsible for:
+
+- device identification
+- connection management
+- protocol handling
+- credential access
+
+6.5 Alarm Service
+
+Responsible for:
+
+- raising remediation alarms
+- clearing resolved alarms
+- generating critical alerts on remediation failure
+
+---
+
+7. Workflow Sequence
+
+1. Manual configuration detected on device
+2. Config Comparator Service identifies drift
+3. Remediation Controller triggered
+4. Previously applied SDN configuration retrieved
+5. Device connectivity validated
+6. Config reapply workflow initiated
+7. Last valid SDN configuration pushed to device
+8. Restoration result verified
+
+If restoration succeeds:
+
+- remediation status updated
+- alarm cleared
+- audit entry created
+
+If restoration fails:
+
+- critical alarm raised
+- remediation failure logged
+
+---
+
+8. Database Changes
+
+CONFIG_REMEDIATION_HISTORY
+
+Column Name| Description
+remediation_id| Unique remediation identifier
+device_id| Device identifier
+trigger_event_id| Related config change event
+previous_config_version| Restored config version
+remediation_status| SUCCESS / FAILED
+remediation_time| Remediation timestamp
+failure_reason| Failure details
+created_time| Record creation timestamp
+
+---
+
+9. APIs / Interfaces
+
+Trigger Config Remediation
+
+POST /config/remediate
+
+Request:
+
+{
+  "deviceId": "DEV001",
+  "eventId": "EVT12345"
+}
+
+Response:
+
+{
+  "status": "REMEDIATION_TRIGGERED"
+}
+
+---
+
+10. Failure Handling
+
+Scenario| Handling
+Device unreachable| Retry remediation
+Config push failure| Raise critical alarm
+Previous config missing| Abort remediation
+Duplicate remediation request| Deduplication handling
+Validation failure| Mark remediation failed
+
+---
+
+11. Scalability Considerations
+
+- Remediation workflows should support asynchronous execution
+- Parallel remediation support required for multiple devices
+- Workflow execution should support retry/backoff
+- Remediation processing should support horizontal scaling
+
+---
+
+12. Security Considerations
+
+- Remediation execution should require authorized access
+- Device credentials should be securely managed
+- All remediation actions must be audit logged
+- Configuration restoration actions should be traceable
+
+---
+
+13. Assumptions
+
+- Previously applied SDN configuration is available
+- Device connectivity exists during remediation
+- Config apply workflow already supported in SDN
+- Drift detection framework already exists
+
+---
+
+14. Future Enhancements
+
+- Partial configuration remediation
+- Policy-driven remediation control
+- Approval-based remediation workflow
+- Scheduled remediation windows
+- Multi-version rollback support
