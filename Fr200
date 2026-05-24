@@ -1,0 +1,242 @@
+HLD – FR200
+
+Support Receiving Configuration Change Events from Syslog
+
+---
+
+1. Objective
+
+Enable SDN System to receive and process configuration change events generated from network devices through Syslog Service.
+
+This feature establishes the event ingestion framework required for downstream configuration validation, compliance monitoring, and strict configuration enforcement workflows.
+
+---
+
+2. Background
+
+Currently, network devices emit syslog messages whenever configuration changes occur on devices.
+
+However, SDN System does not have a dedicated framework to:
+
+- receive configuration change events from Syslog Service
+- process configuration change notifications
+- correlate events with managed devices
+- trigger downstream configuration governance workflows
+
+This limits SDN’s ability to track real-time device configuration activity.
+
+---
+
+3. Proposed Solution
+
+Introduce a Syslog Event Integration framework between Syslog Service and SDN System.
+
+When a configuration change occurs on a network device:
+
+1. Device generates configuration change syslog event
+2. Syslog Service captures the event
+3. Syslog Service forwards event to SDN Config Event Processor
+4. SDN validates and processes the event
+5. Event becomes available for downstream workflows such as:
+   - Strict Configuration validation
+   - AI-based config classification
+   - Alarm generation
+   - Audit logging
+
+---
+
+4. Scope
+
+In Scope
+
+- Receive configuration change events from Syslog Service
+- Process and validate incoming syslog events
+- Device correlation and event mapping
+- Event persistence/logging
+- Integration support for downstream consumers
+
+Out of Scope
+
+- Configuration source classification
+- Manual configuration detection
+- Configuration rollback
+- Configuration diff comparison
+- Alarm generation logic
+
+---
+
+5. High Level Architecture
+
++------------------+
+| Network Device   |
++------------------+
+         |
+         | Syslog Event
+         v
++------------------+
+| Syslog Service   |
++------------------+
+         |
+         | Forward Config Event
+         v
++-----------------------------+
+| Config Event Processor      |
++-----------------------------+
+         |
+         +----------------+
+         |                |
+         v                v
++----------------+  +----------------+
+| Event Store    |  | Downstream     |
+| / Audit Logs   |  | Consumers      |
++----------------+  +----------------+
+
+---
+
+6. Component Details
+
+6.1 Network Device
+
+Generates syslog event whenever configuration changes occur on device.
+
+6.2 Syslog Service
+
+Captures syslog messages from devices and forwards configuration change events to SDN System.
+
+Responsibilities:
+
+- Receive device syslog messages
+- Filter configuration-related events
+- Forward relevant events to SDN
+
+6.3 Config Event Processor
+
+Receives and processes configuration change events from Syslog Service.
+
+Responsibilities:
+
+- Validate event payload
+- Parse device information
+- Correlate device inventory
+- Persist event metadata
+- Publish event for downstream consumers
+
+6.4 Event Store / Audit Logs
+
+Stores processed configuration change event information for audit and tracking purposes.
+
+6.5 Downstream Consumers
+
+Other SDN workflows/services consuming configuration change events.
+
+Examples:
+
+- Strict Configuration validation
+- AI Agent
+- Alarm framework
+- Compliance workflows
+
+---
+
+7. Workflow Sequence
+
+Configuration Change Event Flow
+
+1. Configuration change occurs on network device
+2. Device emits syslog event
+3. Syslog Service captures event
+4. Syslog Service forwards event to SDN
+5. Config Event Processor receives event
+6. Processor validates event structure
+7. Device mapping/correlation performed
+8. Event persisted for audit purposes
+9. Event published for downstream consumers
+
+---
+
+8. Event Payload (Sample)
+
+{
+  "deviceId": "DEV001",
+  "deviceIp": "10.10.10.1",
+  "eventType": "CONFIG_CHANGE",
+  "timestamp": "2026-05-24T10:30:00Z",
+  "syslogMessage": "Configuration updated on device"
+}
+
+---
+
+9. API / Integration Changes
+
+Syslog to SDN Event Endpoint
+
+POST /config-events
+
+Purpose:
+
+- Receive configuration change events from Syslog Service.
+
+---
+
+10. Database Changes
+
+CONFIG_CHANGE_EVENTS
+
+Column Name| Description
+event_id| Unique event identifier
+device_id| Device identifier
+device_ip| Device IP
+event_type| Event type
+event_timestamp| Event timestamp
+raw_syslog_message| Original syslog payload
+processing_status| Event processing status
+created_time| Event ingestion time
+
+---
+
+11. Failure Handling
+
+Scenario| Handling
+Invalid syslog payload| Reject and log validation failure
+Unknown device| Log unmapped device event
+Duplicate event| Deduplicate using event correlation
+Syslog service unavailable| Retry event delivery
+Event processing failure| Persist failed event for retry
+
+---
+
+12. Scalability Considerations
+
+- High volume syslog events expected
+- Event processing should be asynchronous
+- Queue-based buffering recommended
+- Config Event Processor should support horizontal scaling
+- Event persistence should support bulk ingestion
+
+---
+
+13. Security Considerations
+
+- Accept events only from authorized Syslog Service
+- Validate event authenticity
+- Audit all received configuration events
+- Secure inter-service communication
+
+---
+
+14. Assumptions
+
+- Network devices emit syslog messages for configuration changes
+- Syslog Service is already deployed in SDN environment
+- Device inventory data is available for correlation
+- Reliable communication exists between Syslog Service and SDN
+
+---
+
+15. Future Enhancements
+
+- AI-based configuration source classification
+- Strict Configuration policy enforcement
+- Configuration drift detection
+- Real-time alarming
+- Auto-remediation workflows
