@@ -1,0 +1,247 @@
+HLD – FR210
+
+SDN System should compare current config with previously applied config
+
+---
+
+1. Objective
+
+Enable SDN System to compare the current configuration being applied on a device with the previously applied configuration stored in SDN system.
+
+The comparison helps identify:
+
+- unauthorized configuration changes
+- unexpected configuration differences
+- configuration drift from SDN-managed state
+
+This feature strengthens device-level Strict Configuration governance.
+
+---
+
+2. Background
+
+As part of Strict Configuration framework:
+
+- FR190 introduces configuration source validation
+- FR200 introduces syslog-based config change event ingestion
+
+However, SDN currently does not validate whether the newly applied configuration differs from the previously applied SDN configuration.
+
+As a result:
+
+- configuration drift may remain undetected
+- unauthorized changes may not be identified
+- configuration consistency cannot be enforced
+
+---
+
+3. Proposed Solution
+
+Introduce a Configuration Comparison framework within SDN System.
+
+When a configuration change event is received:
+
+1. SDN extracts current configuration payload
+2. Previously applied configuration is retrieved from SDN repository
+3. Both configurations are normalized
+4. Configuration comparison is performed
+5. Difference/drift result is generated
+6. If mismatch detected:
+   - drift event generated
+   - alarm raised
+   - audit entry created
+
+---
+
+4. Scope
+
+In Scope
+
+- Current configuration extraction
+- Previously applied configuration retrieval
+- Configuration normalization
+- Configuration comparison
+- Drift/difference detection
+- Alarm generation
+- Comparison result persistence
+
+Out of Scope
+
+- Automatic rollback/remediation
+- Configuration auto-correction
+- Vendor-specific config optimization
+
+---
+
+5. High Level Architecture
+
++-----------------------------+
+| Config Event Processor      |
++-----------------------------+
+         |
+         v
++-----------------------------+
+| Config Comparator Service   |
++-----------------------------+
+         |
+ +-------+------------------+
+ |                          |
+ v                          v
++----------------+   +----------------------+
+| Current Config |   | Previously Applied   |
+| Extractor      |   | Config Repository    |
++----------------+   +----------------------+
+         |                          |
+         +------------+-------------+
+                      |
+                      v
+              Config Comparison
+                      |
+          +-----------+-----------+
+          |                       |
+          v                       v
+      Config Match         Config Difference
+          |                       |
+          v                       v
+      Mark Valid            Raise Alarm
+
+---
+
+6. Component Details
+
+6.1 Config Comparator Service
+
+Responsible for:
+
+- orchestrating comparison workflow
+- retrieving previous configuration
+- comparing configuration payloads
+- identifying configuration drift
+
+6.2 Current Config Extractor
+
+Responsible for:
+
+- extracting current configuration payload
+- parsing incoming configuration content
+- preparing normalized config structure
+
+6.3 Previously Applied Config Repository
+
+Stores:
+
+- last SDN applied configuration
+- configuration history
+- configuration metadata
+
+6.4 Drift Detection Engine
+
+Responsible for:
+
+- normalized configuration comparison
+- mismatch identification
+- drift result generation
+
+6.5 Alarm Service
+
+Raises alarm when configuration mismatch/drift is detected.
+
+---
+
+7. Workflow Sequence
+
+1. Device configuration change event received
+2. Config Event Processor triggers comparison workflow
+3. Current configuration payload extracted
+4. Previously applied configuration retrieved
+5. Configurations normalized
+6. Comparison performed
+7. If mismatch detected:
+   - drift event generated
+   - alarm raised
+   - audit entry created
+
+---
+
+8. Database Changes
+
+CONFIG_COMPARISON_RESULT
+
+Column Name| Description
+comparison_id| Unique comparison identifier
+device_id| Device identifier
+comparison_status| MATCH / DIFFERENCE
+compared_time| Comparison timestamp
+previous_config_version| Previous config version
+current_config_version| Current config version
+difference_summary| Difference details summary
+created_time| Record creation timestamp
+
+---
+
+9. APIs / Interfaces
+
+Trigger Config Comparison
+
+POST /config/compare
+
+Request:
+
+{
+  "deviceId": "DEV001",
+  "eventId": "EVT12345"
+}
+
+Response:
+
+{
+  "status": "COMPARISON_TRIGGERED"
+}
+
+---
+
+10. Failure Handling
+
+Scenario| Handling
+Current config extraction failed| Log parsing failure
+Previous config missing| Mark comparison incomplete
+Config normalization failed| Raise comparison error
+Duplicate comparison request| Deduplication handling
+Repository unavailable| Retry with backoff
+
+---
+
+11. Scalability Considerations
+
+- Comparison processing should be asynchronous
+- Comparison services should support parallel execution
+- Large configuration payloads should support optimized parsing
+- Drift processing should support horizontal scaling
+
+---
+
+12. Security Considerations
+
+- Configuration data should be securely stored
+- Sensitive configuration fields may be masked
+- Comparison results must be audit traceable
+- Access to configuration repository should be restricted
+
+---
+
+13. Assumptions
+
+- Current configuration payload is available through event pipeline
+- Previously applied configuration is stored in SDN repository
+- Config normalization rules are supported
+- Syslog event ingestion framework already exists
+
+---
+
+14. Future Enhancements
+
+- Line-level configuration diff visualization
+- Vendor-aware comparison logic
+- Drift severity classification
+- Policy-based drift filtering
+- Automated remediation workflow
