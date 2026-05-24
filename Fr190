@@ -1,0 +1,251 @@
+Here’s a clean enterprise-style initial HLD draft for FR190.
+
+HLD – FR190
+
+Device Level Strict Configuration Support
+
+---
+
+1. Objective
+
+Introduce device-level Strict Configuration support in SDN Orchestrator to identify unauthorized/manual configuration changes performed directly on network devices outside the standard SDN workflow.
+
+The feature enables SDN to detect configuration source using Syslog-triggered events and classify whether the configuration was applied through:
+
+- SDN Orchestrator workflow
+- Manual device access
+
+---
+
+2. Background
+
+Currently, configuration changes are primarily applied using the standard SDN Configuration Generator workflow.
+
+Existing flow:
+
+1. User selects target devices from SDN UI
+2. User applies configuration/template
+3. SDN workflow pushes configuration to device
+4. Device configuration gets updated
+
+However, network administrators can still directly log into devices and apply manual configuration changes through device terminal/CLI access.
+
+At present, SDN does not differentiate between:
+
+- SDN initiated configuration changes
+- Manual device configuration changes
+
+This creates configuration governance and compliance challenges.
+
+---
+
+3. Proposed Solution
+
+Introduce a device-level Strict Configuration policy.
+
+When Strict Configuration is enabled for a device:
+
+1. Device emits configuration change syslog event
+2. Syslog Service captures the event
+3. Config Event Processor consumes the event
+4. Config Classification Service analyzes the configuration source
+5. SDN classifies the event as:
+   - SDN initiated configuration
+   - Manual configuration
+6. If manual configuration is detected:
+   - violation event is generated
+   - alert/log entry is created
+
+---
+
+4. Scope
+
+In Scope
+
+- Device-level strict configuration enablement
+- Syslog-driven configuration change detection
+- Configuration source classification
+- Manual configuration violation detection
+- Alert/event generation
+
+Out of Scope
+
+- Automatic rollback of manual configuration
+- Configuration diff analysis
+- Configuration reconciliation
+- AI model implementation details
+
+---
+
+5. High Level Architecture
+
++------------------+
+| Network Device   |
++------------------+
+         |
+         | Config Change Event
+         v
++------------------+
+| Syslog Service   |
++------------------+
+         |
+         v
++-----------------------------+
+| Config Event Processor      |
++-----------------------------+
+         |
+         | Check Strict Config Policy
+         v
++-----------------------------+
+| Config Classification       |
+| Service                     |
++-----------------------------+
+         |
+ +-------+--------+
+ |                |
+ v                v
+SDN Initiated   Manual Config
+Config          Detected
+ |                |
+ v                v
+Mark Valid     Raise Violation
+
+---
+
+6. Component Details
+
+6.1 SDN UI
+
+Provides option to enable/disable Strict Configuration at device level.
+
+6.2 Device Policy Store
+
+Stores Strict Configuration policy information for devices.
+
+6.3 Syslog Service
+
+Captures configuration change syslog events emitted from devices.
+
+6.4 Config Event Processor
+
+Processes syslog events and coordinates configuration source validation flow.
+
+Responsibilities:
+
+- Parse config change events
+- Identify target device
+- Validate strict mode status
+- Invoke classification service
+
+6.5 Config Classification Service
+
+Determines whether configuration change originated from:
+
+- SDN workflow
+- Manual device access
+
+6.6 Alert/Event Service
+
+Generates violation alerts/events for manual configuration detection.
+
+---
+
+7. Workflow Sequence
+
+Strict Configuration Enabled Flow
+
+1. User enables Strict Configuration for device
+2. Configuration change occurs on device
+3. Device emits syslog event
+4. Syslog Service captures event
+5. Config Event Processor receives event
+6. Processor checks device strict mode status
+7. Classification Service analyzes config source
+8. Result returned:
+   - SDN initiated
+   - Manual configuration
+9. If manual configuration detected:
+   - violation event generated
+   - alert logged in SDN system
+
+---
+
+8. Database Changes
+
+DEVICE_CONFIG_POLICY
+
+Column Name| Description
+device_id| Unique device identifier
+strict_config_enabled| Strict configuration flag
+created_by| User who enabled policy
+created_time| Creation timestamp
+updated_time| Last updated timestamp
+
+---
+
+9. API Changes
+
+Enable Strict Configuration
+
+PUT /devices/{deviceId}/strict-config
+
+Request:
+
+{
+  "enabled": true
+}
+
+Response:
+
+{
+  "deviceId": "DEV001",
+  "strictConfigEnabled": true
+}
+
+---
+
+10. Failure Handling
+
+Scenario| Handling
+Syslog event missing| Event logged for monitoring
+Duplicate syslog event| Deduplication at processor level
+Classification service unavailable| Retry with timeout handling
+Device not found| Ignore event and log warning
+Strict mode disabled| No validation required
+
+---
+
+11. Scalability Considerations
+
+- Syslog events may be generated at high volume
+- Event processing should be asynchronous
+- Config Event Processor should support horizontal scaling
+- Classification Service should remain independently scalable
+- Queue-based event buffering is recommended
+
+---
+
+12. Security Considerations
+
+- Only authorized users can enable/disable Strict Configuration
+- All violation events must be audit logged
+- Device policy updates must be traceable
+
+---
+
+13. Assumptions
+
+- Devices emit syslog events for configuration changes
+- Syslog Service already exists in current SDN architecture
+- Device inventory mapping is available
+- Config Classification Service can determine configuration source
+
+---
+
+14. Future Enhancements
+
+- Configuration diff analysis
+- Automatic rollback of manual configuration
+- Configuration drift dashboard
+- Compliance reporting
+- Auto-remediation workflow
