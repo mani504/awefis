@@ -1,0 +1,333 @@
+HLD – FR160
+
+SDN Support for Arrcus ArcOS Installation based on ONIE
+
+---
+
+1. Overview
+
+This document describes the high-level design for supporting automated Arrcus ArcOS installation on ONIE-compatible network switches through the SDN NOS Management framework.
+
+The solution enables:
+
+- automated ArcOS image onboarding
+- ONIE-based installer discovery
+- centralized image staging
+- installation orchestration
+- installation status verification
+
+The workflow supports both:
+
+- physical ONIE-compatible switches
+- virtual ArcOS qcow2 instances
+
+---
+
+2. Objective
+
+The objective of this FR is to automate ArcOS installation on supported network devices using ONIE installer workflows and centralized orchestration through the SDN platform.
+
+The SDN system should:
+
+- stage ArcOS installer artifacts
+- expose installer metadata through DHCP
+- trigger ONIE-based installation
+- monitor installation progress
+- verify successful ArcOS boot
+
+---
+
+3. Scope
+
+In Scope
+
+- ONIE-based ArcOS installation workflow
+- ArcOS installer image staging
+- DHCP-based installer discovery
+- Installation orchestration and monitoring
+- Installation success verification
+- Support for physical and virtual devices
+
+Out of Scope
+
+- Day-1 provisioning orchestration
+- Runtime service provisioning
+- ZTP ownership/workflow management
+- Network configuration lifecycle management
+
+Post-install provisioning remains handled by the existing provisioning framework.
+
+---
+
+4. High-Level Architecture
+
+4.1 Components
+
+4.1.1 nos-updator Service
+
+Primary orchestration service responsible for:
+
+- onboarding installation requests
+- staging installer artifacts
+- configuring installer metadata
+- triggering installation workflow
+- monitoring installation lifecycle
+- reporting installation status
+
+---
+
+4.1.2 Staging HTTP Server
+
+Hosts installation artifacts including:
+
+- ArcOS installer image
+- installation metadata
+- checksum files
+
+Supported protocols:
+
+- HTTP
+- HTTPS
+- optional TFTP support
+
+---
+
+4.1.3 DHCP Server
+
+Provides ONIE installer discovery information.
+
+The DHCP server exposes:
+
+- installer URL
+- boot metadata
+
+using DHCP Option 125.
+
+---
+
+4.1.4 ONIE-Compatible Switch
+
+Target device where:
+
+- ONIE performs installer discovery
+- ArcOS image installation occurs
+- system reboots into ArcOS
+
+Supported targets:
+
+- physical switches
+- virtual qcow2-based ArcOS instances
+
+---
+
+5. Installation Workflow
+
+Stage A – Installation Request
+
+1. User/API triggers installation request
+2. nos-updator validates request metadata
+3. ArcOS installer image is staged on HTTP server
+4. DHCP installer metadata is configured
+
+---
+
+Stage B – ONIE Discovery
+
+1. Device powers ON
+2. ONIE bootloader starts
+3. ONIE sends DHCP discovery request
+4. DHCP server returns:
+   - installer URL
+   - boot metadata
+
+through DHCP Option 125.
+
+---
+
+Stage C – ArcOS Installation
+
+1. ONIE downloads ArcOS installer image
+2. ArcOS installation begins
+3. Installer writes image to device storage
+4. Device reboots after successful installation
+
+---
+
+Stage D – Installation Verification
+
+1. ArcOS boots successfully
+2. nos-updator verifies device reachability
+3. Installed ArcOS version validated
+4. Installation status marked successful
+
+After successful ArcOS boot, the device transitions into the existing provisioning workflow managed outside the scope of this FR.
+
+---
+
+6. End-to-End Flow
+
+Installation Request
+        ↓
+Artifact Staging
+        ↓
+DHCP Metadata Configuration
+        ↓
+ONIE Boot
+        ↓
+DHCP Discovery
+        ↓
+Receive Installer URL
+        ↓
+Download ArcOS Installer
+        ↓
+Install ArcOS
+        ↓
+Reboot
+        ↓
+ArcOS Boot
+        ↓
+Installation Verification
+        ↓
+Installation Success
+
+---
+
+7. Virtual ArcOS Support
+
+Virtual ArcOS qcow2 instances already contain the ArcOS image.
+
+For virtual devices:
+
+- ONIE installation stage is skipped
+- ArcOS boots directly
+- installation verification flow remains applicable
+
+Supported environments:
+
+- KVM
+- QEMU
+- virtualization-based labs/testing
+
+---
+
+8. API Design
+
+Endpoint
+
+PUT /nosupdate
+
+---
+
+Request Parameters
+
+Parameter| Description
+deviceId| Target device identifier
+vendor| Device vendor
+model| Device model
+macAddress| Device MAC address
+nosImageUrl| ArcOS installer URL
+nosVersion| Target ArcOS version
+
+---
+
+Response
+
+Field| Description
+requestId| Installation workflow ID
+status| Workflow status
+message| Operation result
+
+---
+
+9. DHCP Configuration
+
+The DHCP server exposes installer discovery metadata for ONIE devices.
+
+DHCP Option Usage
+
+DHCP Option| Purpose
+Option 125| ONIE installer URL
+
+Example:
+
+option onie.installer-url "http://staging-server/arcos-installer.bin";
+
+---
+
+10. Installation Verification
+
+Installation is considered successful when:
+
+- ArcOS boots successfully
+- target version is reachable
+- device responds through management interface
+
+Verification methods:
+
+- management IP reachability
+- SSH verification
+- version validation
+
+---
+
+11. Failure Handling
+
+Failure Scenarios
+
+- DHCP discovery failure
+- installer download failure
+- installation timeout
+- reboot failure
+- ArcOS boot failure
+
+Recovery Handling
+
+- retry installation
+- timeout handling
+- failure reporting
+- rollback hooks for future enhancements
+
+---
+
+12. Security Considerations
+
+- restricted access to staging server
+- validated installer artifacts
+- secure management access
+- controlled installation workflows
+
+---
+
+13. Assumptions
+
+- Device is ONIE compatible
+- Management network connectivity exists
+- DHCP server is reachable
+- Installer artifacts are accessible
+- Device supports ArcOS installation
+
+---
+
+14. Future Enhancements
+
+- automated rollback support
+- checksum/fingerprint validation
+- parallel installation workflows
+- provisioning integration hooks
+- enhanced telemetry support
+
+---
+
+15. Summary
+
+This design enables automated ArcOS installation on ONIE-compatible devices using centralized orchestration through the SDN NOS Management framework.
+
+The solution provides:
+
+- automated installer discovery
+- centralized image staging
+- scalable installation workflows
+- installation monitoring
+- support for both physical and virtual environments
+
+while keeping post-install provisioning external to the scope of FR160.
