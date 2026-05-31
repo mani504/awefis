@@ -1,0 +1,276 @@
+HLD – FR180
+
+SDN Support for ArcOS Fingerprint and Checksum Validation
+
+---
+
+1. Overview
+
+This document describes the design for validating ArcOS image integrity and version correctness during installation and upgrade workflows.
+
+The validation framework ensures that deployed ArcOS images match the expected software version and image fingerprint before a workflow is marked successful.
+
+This FR acts as a verification layer for:
+
+- FR160 (ArcOS Installation)
+- FR170 (ArcOS Upgrade)
+
+---
+
+2. Objective
+
+The objective of this FR is to prevent invalid, corrupted, or unexpected software images from being accepted as successful installations or upgrades.
+
+The SDN platform should:
+
+- validate installed ArcOS version
+- validate image fingerprint/checksum
+- detect image corruption
+- verify software integrity
+- fail workflows when validation fails
+
+---
+
+3. Scope
+
+In Scope
+
+- Image fingerprint validation
+- Checksum verification
+- Version validation
+- Installation verification
+- Upgrade verification
+- Validation status reporting
+
+Out of Scope
+
+- Image installation
+- Image upgrade execution
+- Device provisioning
+- Runtime configuration validation
+
+---
+
+4. High-Level Architecture
+
+Components
+
+4.1 nos-updator Service
+
+Responsible for:
+
+- triggering validation
+- comparing expected and actual fingerprints
+- updating workflow status
+- reporting validation failures
+
+---
+
+4.2 Artifact Repository
+
+Provides:
+
+- expected image metadata
+- approved fingerprints
+- checksum files
+
+---
+
+4.3 ArcOS Device
+
+Provides:
+
+- running version information
+- installed image metadata
+- software fingerprint information
+
+---
+
+5. Validation Workflow
+
+Stage A – Workflow Initiation
+
+Validation is triggered after:
+
+- ArcOS installation (FR160)
+  or
+- ArcOS upgrade (FR170)
+
+---
+
+Stage B – Expected Metadata Retrieval
+
+The system retrieves:
+
+- target version
+- expected fingerprint
+- expected checksum
+
+from the staged artifact metadata.
+
+---
+
+Stage C – Device Inspection
+
+The system queries the target device and retrieves:
+
+- installed ArcOS version
+- software fingerprint
+- image checksum
+
+---
+
+Stage D – Comparison
+
+Expected values are compared against actual values.
+
+Validation checks:
+
+Version Validation
+
+Expected Version == Installed Version
+
+---
+
+Fingerprint Validation
+
+Expected Fingerprint == Installed Fingerprint
+
+---
+
+Checksum Validation
+
+Expected Checksum == Installed Checksum
+
+---
+
+Stage E – Result
+
+If all validations pass:
+
+Workflow Status = SUCCESS
+
+Otherwise:
+
+Workflow Status = FAILED
+
+---
+
+6. End-to-End Flow
+
+Installation/Upgrade Complete
+            ↓
+Retrieve Expected Metadata
+            ↓
+Query Device
+            ↓
+Collect Version/Fingerprint
+            ↓
+Compare Values
+            ↓
+Validation Pass?
+        /          \
+      Yes           No
+       ↓             ↓
+   SUCCESS       FAILURE
+
+---
+
+7. API Design
+
+Endpoint
+
+POST /nosupdate/validate
+
+---
+
+Request
+
+Parameter| Description
+deviceId| Target device
+expectedVersion| Expected ArcOS version
+expectedFingerprint| Expected fingerprint
+expectedChecksum| Expected checksum
+
+---
+
+Response
+
+Field| Description
+status| Validation status
+versionMatch| Boolean
+fingerprintMatch| Boolean
+checksumMatch| Boolean
+
+---
+
+8. Validation States
+
+State| Description
+PENDING| Validation not started
+COLLECTING| Device metadata retrieval
+VALIDATING| Comparison in progress
+PASSED| Validation successful
+FAILED| Validation failed
+
+---
+
+9. Failure Scenarios
+
+Version Mismatch
+
+Installed version differs from target version.
+
+---
+
+Fingerprint Mismatch
+
+Installed image does not match approved image.
+
+---
+
+Checksum Mismatch
+
+Image corruption detected.
+
+---
+
+Device Unreachable
+
+Validation cannot be completed.
+
+---
+
+10. Security Considerations
+
+Validation helps prevent:
+
+- corrupted image deployment
+- unauthorized image installation
+- software tampering
+- accidental version drift
+
+Only approved fingerprints should be accepted.
+
+---
+
+11. Future Enhancements
+
+- cryptographic signature validation
+- image trust-chain verification
+- fleet-wide compliance reporting
+- automatic remediation workflows
+
+---
+
+12. Summary
+
+This design introduces a validation framework that verifies ArcOS image integrity and correctness after installation and upgrade workflows.
+
+The solution ensures that only approved ArcOS images are accepted by validating:
+
+- software version
+- image fingerprint
+- checksum integrity
+
+before marking installation or upgrade workflows successful.
