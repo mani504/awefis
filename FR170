@@ -1,0 +1,330 @@
+HLD – FR170
+
+SDN Support for Arrcus ArcOS Upgrade
+
+---
+
+1. Overview
+
+This document describes the high-level design for supporting automated Arrcus ArcOS upgrade workflows through the SDN NOS Management framework.
+
+The solution enables:
+
+- centralized ArcOS image upgrade orchestration
+- version-controlled upgrade execution
+- image staging and distribution
+- upgrade monitoring and validation
+- rollback extensibility for future releases
+
+The workflow supports:
+
+- physical ArcOS switches
+- virtual ArcOS qcow2 instances
+
+---
+
+2. Objective
+
+The objective of this FR is to automate ArcOS software upgrades across managed devices through centralized orchestration.
+
+The SDN platform should:
+
+- receive upgrade requests
+- stage upgrade images
+- trigger upgrade execution
+- monitor upgrade lifecycle
+- verify successful boot into target version
+- report upgrade results
+
+---
+
+3. Scope
+
+In Scope
+
+- ArcOS image upgrade workflow
+- Upgrade image staging
+- Upgrade orchestration
+- Device reboot coordination
+- Upgrade monitoring
+- Version verification
+- Support for physical and virtual devices
+
+Out of Scope
+
+- Day-1 provisioning ownership
+- Runtime service provisioning
+- Network service lifecycle management
+- Application-level configuration migration
+
+---
+
+4. High-Level Architecture
+
+4.1 Components
+
+4.1.1 nos-updator Service
+
+Primary orchestration component responsible for:
+
+- receiving upgrade requests
+- validating target version
+- staging upgrade artifacts
+- triggering upgrade workflow
+- monitoring upgrade execution
+- verifying upgrade completion
+
+---
+
+4.1.2 Artifact Staging Server
+
+Hosts:
+
+- ArcOS upgrade images
+- image metadata
+- checksum files
+- version manifests
+
+Supported protocols:
+
+- HTTP
+- HTTPS
+- optional TFTP support
+
+---
+
+4.1.3 ArcOS Device
+
+Target device responsible for:
+
+- downloading upgrade image
+- validating image
+- executing upgrade
+- rebooting into upgraded image
+
+---
+
+4.1.4 Device Inventory Service
+
+Provides:
+
+- current software version
+- device reachability
+- platform compatibility
+- target device metadata
+
+---
+
+5. Upgrade Workflow
+
+Stage A – Upgrade Request
+
+1. User/API triggers upgrade request
+2. nos-updator validates:
+   - device eligibility
+   - platform compatibility
+   - target version
+3. Upgrade workflow created
+
+---
+
+Stage B – Artifact Preparation
+
+1. Target ArcOS image staged
+2. Upgrade metadata generated
+3. Upgrade URL prepared
+4. Device-specific upgrade context stored
+
+---
+
+Stage C – Upgrade Execution
+
+1. Upgrade command issued to device
+2. Device downloads target image
+3. Image validation performed
+4. Upgrade process starts
+5. Upgrade status continuously monitored
+
+---
+
+Stage D – Reboot Phase
+
+1. Device initiates reboot
+2. Existing software image replaced/activated
+3. Device boots into upgraded ArcOS version
+
+---
+
+Stage E – Upgrade Verification
+
+1. Device becomes reachable
+2. Version validation executed
+3. Upgrade status verified
+4. Workflow marked successful
+
+---
+
+6. End-to-End Flow
+
+Upgrade Request
+        ↓
+Validation
+        ↓
+Artifact Staging
+        ↓
+Upgrade Trigger
+        ↓
+Image Download
+        ↓
+Image Validation
+        ↓
+Upgrade Execution
+        ↓
+Reboot
+        ↓
+ArcOS Boot
+        ↓
+Version Verification
+        ↓
+Upgrade Success
+
+---
+
+7. Upgrade Validation
+
+Before upgrade execution:
+
+The system validates:
+
+- device reachability
+- supported platform
+- current version
+- target version compatibility
+- image availability
+
+Validation failures immediately terminate workflow.
+
+---
+
+8. API Design
+
+Endpoint
+
+PUT /nosupdate/upgrade
+
+---
+
+Request Parameters
+
+Parameter| Description
+deviceId| Target device
+currentVersion| Existing version
+targetVersion| Upgrade version
+imageUrl| Upgrade image URL
+upgradeType| Upgrade mode
+
+---
+
+Response
+
+Field| Description
+requestId| Workflow ID
+status| Upgrade status
+message| Operation result
+
+---
+
+9. Upgrade States
+
+State| Description
+REQUESTED| Upgrade requested
+VALIDATING| Validation running
+STAGED| Image prepared
+IN_PROGRESS| Upgrade executing
+REBOOTING| Device rebooting
+VERIFYING| Post-upgrade verification
+SUCCESS| Upgrade successful
+FAILED| Upgrade failed
+
+---
+
+10. Monitoring & Observability
+
+The system tracks:
+
+- workflow progress
+- upgrade duration
+- download failures
+- reboot duration
+- verification status
+
+Metrics:
+
+- success rate
+- failure rate
+- average upgrade time
+- upgrade distribution by version
+
+---
+
+11. Failure Handling
+
+Failure Scenarios
+
+- image download failure
+- validation failure
+- upgrade timeout
+- reboot failure
+- device unreachable
+- version mismatch
+
+Recovery
+
+- workflow retry
+- failure reporting
+- manual intervention support
+- rollback hook support
+
+---
+
+12. Security Considerations
+
+- authenticated upgrade requests
+- controlled artifact access
+- image integrity validation
+- restricted upgrade permissions
+
+---
+
+13. Future Enhancements
+
+- automated rollback
+- canary upgrade batches
+- parallel fleet upgrades
+- maintenance window scheduling
+- upgrade approval workflows
+
+---
+
+14. Assumptions
+
+- Device already runs ArcOS
+- Device is reachable through management network
+- Upgrade image is available on staging server
+- Platform supports target version
+
+---
+
+15. Summary
+
+This design enables centralized ArcOS software upgrade orchestration through the SDN NOS Management framework.
+
+The solution provides:
+
+- automated upgrade execution
+- controlled reboot handling
+- version verification
+- upgrade lifecycle monitoring
+- scalable fleet-wide upgrade support
+
+while keeping provisioning and Day-1 configuration workflows outside the scope of FR170.
