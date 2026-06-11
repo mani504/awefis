@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SDNO Whitebox Demo</title>
+
+<style>
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Arial,sans-serif;
+}
+
+body{
+background:#fff;
+color:#222;
+}
+
+.header{
+height:64px;
+display:flex;
+align-items:center;
+padding:0 28px;
+border-bottom:1px solid #e7e7e7;
+font-size:13px;
+}
+
+.logo{
+font-weight:700;
+margin-right:80px;
+}
+
+.nav{
+display:flex;
+gap:52px;
+}
+
+.nav span{
+cursor:pointer;
+}
+
+.nav span:hover{
+font-weight:600;
+}
+
+.right{
+margin-left:auto;
+font-size:18px;
+}
+
+.sub{
+height:40px;
+background:#f8f8f8;
+border-bottom:1px solid #ececec;
+padding:10px 20px;
+}
+
+.page{
+padding:18px 28px;
+}
+
+.hidden{
+display:none;
+}
+
+.empty{
+height:500px;
+display:flex;
+align-items:center;
+justify-content:center;
+border:1px solid #eee;
+color:#777;
+}
+
+.btn{
+padding:8px 14px;
+border:none;
+background:#111;
+color:white;
+font-size:12px;
+cursor:pointer;
+}
+
+.btn.light{
+background:white;
+color:black;
+border:1px solid #ddd;
+}
+
+.btn:disabled{
+opacity:.35;
+}
+
+.tabs{
+display:flex;
+gap:24px;
+margin-bottom:20px;
+font-size:13px;
+}
+
+.tab{
+padding-bottom:8px;
+cursor:pointer;
+}
+
+.active{
+border-bottom:2px solid black;
+}
+
+.filters{
+margin-bottom:20px;
+}
+
+.filter{
+display:inline-block;
+padding:6px 10px;
+background:#6a6a6a;
+color:white;
+font-size:11px;
+margin-right:8px;
+border-radius:2px;
+}
+
+.filter.active{
+background:#1264cc;
+}
+
+.toolbar{
+display:flex;
+justify-content:space-between;
+margin-bottom:16px;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+font-size:12px;
+}
+
+th{
+text-align:left;
+padding:12px;
+border-bottom:1px solid #ddd;
+}
+
+td{
+padding:14px 12px;
+border-bottom:1px solid #f2f2f2;
+}
+
+.orange{
+color:#c46a00;
+}
+
+.green{
+color:#0d8b4e;
+}
+
+.footer{
+position:fixed;
+bottom:0;
+left:0;
+right:0;
+
+height:28px;
+
+border-top:1px solid #ddd;
+
+background:#fafafa;
+
+display:flex;
+
+align-items:center;
+
+gap:60px;
+
+padding:0 16px;
+
+font-size:11px;
+}
+
+.title{
+font-size:15px;
+font-weight:600;
+margin-bottom:14px;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="header">
+
+<div class="logo">
+SAMSUNG Cognitiv/ SDNO
+</div>
+
+<div class="nav">
+
+<span>Monitor</span>
+
+<span>Fault</span>
+
+<span onclick="openWhitebox()">
+Inventory
+</span>
+
+<span>Configuration</span>
+
+<span>Security</span>
+
+<span>System</span>
+
+<span>Smart Suite</span>
+
+</div>
+
+<div class="right">
+⚙ ☰ 👤
+</div>
+
+</div>
+
+<div class="sub">
+🏠
+</div>
+
+<!-- HOME -->
+
+<div id="home" class="page">
+
+<div class="title">
+Device Overview
+</div>
+
+<div class="empty">
+
+<div align="center">
+
+📄
+
+<br><br>
+
+No device groups configured
+
+<br><br>
+
+<button class="btn">
+
+Create group
+
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+<!-- WHITEBOX -->
+
+<div
+id="whitebox"
+class="page hidden">
+
+<div class="tabs">
+
+<div
+id="tab1"
+class="tab active"
+onclick="showInventory()">
+
+Whitebox Inventory
+
+</div>
+
+<div
+id="tab2"
+class="tab"
+onclick="showOS()">
+
+OS Profile
+
+</div>
+
+</div>
+
+<!-- INVENTORY -->
+
+<div id="inventoryView">
+
+<div class="filters">
+
+<span class="filter active">
+All (4)
+</span>
+
+<span class="filter">
+Ready for detect (1)
+</span>
+
+<span class="filter">
+Waiting for NOS install (2)
+</span>
+
+<span class="filter">
+Waiting for provision (1)
+</span>
+
+<span class="filter">
+Provisioned (1)
+</span>
+
+</div>
+
+<div class="toolbar">
+
+<div class="title">
+
+Whitebox Inventory
+
+</div>
+
+<div>
+
+<button disabled class="btn">
+
+NOS Install
+
+</button>
+
+<button class="btn">
+
+Provision
+
+</button>
+
+<button class="btn light">
+
+↻
+
+</button>
+
+</div>
+
+</div>
+
+<table>
+
+<tr>
+
+<th></th>
+
+<th>First discovered</th>
+
+<th>Serial</th>
+
+<th>Platform</th>
+
+<th>Status</th>
+
+<th>Note</th>
+
+</tr>
+
+<tr>
+
+<td><input type="checkbox"></td>
+
+<td>2026-06-11</td>
+
+<td>WBX-001</td>
+
+<td>WB-48X</td>
+
+<td class="orange">
+Waiting for NOS install
+</td>
+
+<td>
+ONIE booted
+</td>
+
+</tr>
+
+<tr>
+
+<td><input type="checkbox"></td>
+
+<td>2026-06-11</td>
+
+<td>WBX-002</td>
+
+<td>WB-48X</td>
+
+<td class="orange">
+Waiting for provision
+</td>
+
+<td>
+ArcOS installed
+</td>
+
+</tr>
+
+<tr>
+
+<td><input type="checkbox"></td>
+
+<td>2026-06-10</td>
+
+<td>WBX-003</td>
+
+<td>WB-32Q</td>
+
+<td class="green">
+Provisioned
+</td>
+
+<td>
+SDNO onboarded
+</td>
+
+</tr>
+
+</table>
+
+</div>
+
+<!-- OS PROFILE -->
+
+<div
+id="osView"
+class="hidden">
+
+<div class="toolbar">
+
+<div class="title">
+
+OS Profile
+
+</div>
+
+<button class="btn">
+
++ Add Profile
+
+</button>
+
+</div>
+
+<table>
+
+<tr>
+
+<th>Platform</th>
+
+<th>OS Version</th>
+
+<th>Installer Image</th>
+
+<th>Install Type</th>
+
+</tr>
+
+<tr>
+
+<td>WB-48X</td>
+
+<td>ArcOS 5.4</td>
+
+<td>arcos-onl-5.4.bin</td>
+
+<td>ONIE</td>
+
+</tr>
+
+<tr>
+
+<td>WB-48X</td>
+
+<td>ArcOS 5.5</td>
+
+<td>arcos-onl-5.5.bin</td>
+
+<td>ONIE</td>
+
+</tr>
+
+<tr>
+
+<td>WB-32Q</td>
+
+<td>ArcOS 5.3</td>
+
+<td>arcos-onl-5.3.bin</td>
+
+<td>ONIE</td>
+
+</tr>
+
+<tr>
+
+<td>ACX5448</td>
+
+<td>ArcOS 5.2</td>
+
+<td>arcos-upgrade.bin</td>
+
+<td>Standard</td>
+
+</tr>
+
+</table>
+
+</div>
+
+</div>
+
+<div class="footer">
+
+Connected
+
+MINOR
+
+SAO-0004
+
+ALARM
+
+[SDNO]
+
+</div>
+
+<script>
+
+function openWhitebox(){
+
+home.classList.add("hidden")
+
+whitebox.classList.remove("hidden")
+
+}
+
+function showInventory(){
+
+inventoryView.classList.remove("hidden")
+
+osView.classList.add("hidden")
+
+tab1.classList.add("active")
+
+tab2.classList.remove("active")
+
+}
+
+function showOS(){
+
+inventoryView.classList.add("hidden")
+
+osView.classList.remove("hidden")
+
+tab2.classList.add("active")
+
+tab1.classList.remove("active")
+
+}
+
+</script>
+
+</body>
+
+</html>
