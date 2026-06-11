@@ -2,14 +2,15 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>SDNO Whitebox Demo</title>
+<title>SDNO Whitebox Inventory</title>
 
 <style>
+
 *{
+box-sizing:border-box;
 margin:0;
 padding:0;
-box-sizing:border-box;
-font-family:Arial,sans-serif;
+font-family:Arial;
 }
 
 body{
@@ -17,24 +18,531 @@ background:#fff;
 color:#222;
 }
 
-.header{
+.topbar{
 height:64px;
+border-bottom:1px solid #ddd;
 display:flex;
 align-items:center;
 padding:0 28px;
-border-bottom:1px solid #e7e7e7;
-font-size:13px;
 }
 
 .logo{
 font-weight:700;
-margin-right:80px;
+margin-right:70px;
 }
 
-.nav{
+.menu{
 display:flex;
-gap:52px;
+gap:60px;
+font-size:14px;
+color:#444;
 }
+
+.menu div{
+cursor:pointer;
+}
+
+.right{
+margin-left:auto;
+display:flex;
+gap:18px;
+}
+
+.subbar{
+height:52px;
+border-bottom:1px solid #e6e6e6;
+display:flex;
+align-items:center;
+padding:0 28px;
+gap:24px;
+}
+
+.tab{
+font-size:14px;
+cursor:pointer;
+}
+
+.active{
+border-bottom:3px solid black;
+padding-bottom:12px;
+}
+
+.content{
+padding:18px 28px;
+}
+
+.page{
+display:none;
+}
+
+.show{
+display:block;
+}
+
+.badges{
+display:flex;
+gap:8px;
+margin-bottom:24px;
+}
+
+.badge{
+padding:8px 12px;
+background:#565656;
+color:white;
+font-size:12px;
+border-radius:2px;
+}
+
+.badge.blue{
+background:#1565c0;
+}
+
+.toolbar{
+display:flex;
+justify-content:flex-end;
+margin-bottom:14px;
+gap:10px;
+}
+
+.btn{
+height:36px;
+padding:0 18px;
+border:none;
+background:black;
+color:white;
+cursor:pointer;
+}
+
+.btn:disabled{
+background:#bdbdbd;
+cursor:not-allowed;
+}
+
+.refresh{
+width:36px;
+background:white;
+border:1px solid #ccc;
+}
+
+.table{
+width:100%;
+border-collapse:collapse;
+}
+
+.table th{
+text-align:left;
+padding:16px;
+background:#fafafa;
+border-bottom:1px solid #ddd;
+font-size:13px;
+}
+
+.table td{
+padding:18px 16px;
+border-bottom:1px solid #eee;
+font-size:14px;
+}
+
+.green{
+color:#198754;
+}
+
+.red{
+color:#d9534f;
+}
+
+.os-card{
+border:1px solid #ddd;
+width:520px;
+padding:20px;
+margin-top:10px;
+}
+
+.os-row{
+display:flex;
+justify-content:space-between;
+padding:14px 0;
+border-bottom:1px solid #eee;
+}
+
+.footer{
+position:fixed;
+bottom:0;
+left:0;
+right:0;
+height:30px;
+background:#f3f3f3;
+font-size:12px;
+display:flex;
+align-items:center;
+padding:0 12px;
+gap:24px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="topbar">
+
+<div class="logo">
+SAMSUNG Cognitiv/ SDNO
+</div>
+
+<div class="menu">
+
+<div>Monitor</div>
+<div>Fault</div>
+
+<div onclick="openInventory()">
+Inventory
+</div>
+
+<div>Configuration</div>
+<div>Security</div>
+<div>System</div>
+<div>Smart Suite</div>
+
+</div>
+
+<div class="right">
+⚙ ☰ 👤
+</div>
+
+</div>
+
+
+<div class="subbar">
+
+<div class="tab active">
+Whitebox Inventory
+</div>
+
+<div class="tab"
+onclick="openProfile()">
+OS Profile
+</div>
+
+</div>
+
+
+
+<div class="content">
+
+<div
+id="inventoryPage"
+class="page show">
+
+<div class="badges">
+
+<div class="badge blue">
+ALL (4)
+</div>
+
+<div class="badge">
+Ready for detect (1)
+</div>
+
+<div class="badge">
+Waiting for NOS install (2)
+</div>
+
+<div class="badge">
+Waiting for provision (1)
+</div>
+
+<div class="badge">
+Provisioned (1)
+</div>
+
+</div>
+
+
+<div class="toolbar">
+
+<button
+id="nosInstall"
+class="btn">
+NOS Install
+</button>
+
+<button class="btn">
+Provision
+</button>
+
+<button class="refresh">
+↻
+</button>
+
+</div>
+
+
+
+<h3 style="margin-bottom:10px">
+Whitebox Inventory
+</h3>
+
+<table class="table">
+
+<tr>
+
+<th></th>
+<th>First discovered</th>
+<th>Serial</th>
+<th>Platform</th>
+<th>Status</th>
+<th>Note</th>
+
+</tr>
+
+<tr>
+
+<td>
+<input
+type="checkbox"
+class="device">
+</td>
+
+<td>2026-06-11</td>
+
+<td>WBX-001</td>
+
+<td>WB-48X</td>
+
+<td class="green">
+Provisioned
+</td>
+
+<td>
+ArcOS installed
+</td>
+
+</tr>
+
+
+<tr>
+
+<td>
+<input
+type="checkbox"
+class="device">
+</td>
+
+<td>2026-06-11</td>
+
+<td>WBX-002</td>
+
+<td>WB-48X</td>
+
+<td class="red">
+Progress Fail
+</td>
+
+<td>
+Install failed
+</td>
+
+</tr>
+
+
+<tr>
+
+<td>
+<input
+type="checkbox"
+class="device">
+</td>
+
+<td>2026-06-10</td>
+
+<td>WBX-003</td>
+
+<td>WB-32Q</td>
+
+<td class="red">
+Progress Fail
+</td>
+
+<td>
+DHCP timeout
+</td>
+
+</tr>
+
+</table>
+
+</div>
+
+
+
+<div
+id="profilePage"
+class="page">
+
+<h3>
+OS Profile
+</h3>
+
+<div class="os-card">
+
+<div class="os-row">
+<div>Model</div>
+<div>WB-48X</div>
+</div>
+
+<div class="os-row">
+<div>NOS Version</div>
+<div>ArcOS-5.4</div>
+</div>
+
+<div class="os-row">
+<div>NOS Image</div>
+<div>arcos-installer.bin</div>
+</div>
+
+<div class="os-row">
+<div>Installation Type</div>
+<div>ONIE</div>
+</div>
+
+</div>
+
+
+<div class="os-card">
+
+<div class="os-row">
+<div>Model</div>
+<div>WB-32Q</div>
+</div>
+
+<div class="os-row">
+<div>NOS Version</div>
+<div>ArcOS-5.3</div>
+</div>
+
+<div class="os-row">
+<div>NOS Image</div>
+<div>arcos-32q.bin</div>
+</div>
+
+<div class="os-row">
+<div>Installation Type</div>
+<div>Standard</div>
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+
+<div class="footer">
+
+Connected
+
+MINOR
+
+SAO-0004
+
+ALARM
+
+[SDNO]
+
+</div>
+
+
+
+<script>
+
+function openProfile(){
+
+document
+.getElementById(
+"profilePage"
+)
+.classList
+.add(
+"show"
+);
+
+document
+.getElementById(
+"inventoryPage"
+)
+.classList
+.remove(
+"show"
+);
+
+}
+
+function openInventory(){
+
+document
+.getElementById(
+"profilePage"
+)
+.classList
+.remove(
+"show"
+);
+
+document
+.getElementById(
+"inventoryPage"
+)
+.classList
+.add(
+"show"
+);
+
+}
+
+let devices=
+document
+.querySelectorAll(
+".device"
+);
+
+let nos=
+document
+.getElementById(
+"nosInstall"
+);
+
+function refresh(){
+
+let selected=
+document
+.querySelectorAll(
+".device:checked"
+)
+.length;
+
+nos.disabled=
+selected>0;
+
+}
+
+devices.forEach(
+
+x=>x.addEventListener(
+"change",
+refresh
+
+)
+
+);
+
+refresh();
+
+</script>
+
+</body>
+</html>}
 
 .nav span{
 cursor:pointer;
