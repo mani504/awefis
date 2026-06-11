@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>SDNO Whitebox Demo</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Arial,sans-serif;
+}
+
+body{
+background:#fff;
+color:#222;
+}
+
+.hidden{
+display:none!important;
+}
+
+.header{
+height:58px;
+border-bottom:1px solid #eee;
+display:flex;
+align-items:center;
+padding:0 28px;
+}
+
+.logo{
+font-weight:700;
+margin-right:70px;
+}
+
+.nav{
+display:flex;
+gap:48px;
+font-size:13px;
+}
+
+.nav-item{
+cursor:pointer;
+position:relative;
+}
+
+.dropdown{
+position:absolute;
+top:30px;
+left:-10px;
+width:180px;
+background:white;
+border:1px solid #ddd;
+display:none;
+z-index:99;
+}
+
+.dropdown div{
+padding:12px;
+cursor:pointer;
+}
+
+.dropdown div:hover{
+background:#f5f5f5;
+}
+
+.page{
+padding:18px 32px;
+}
+
+.tabs{
+display:flex;
+gap:26px;
+margin-bottom:18px;
+}
+
+.tab{
+cursor:pointer;
+padding-bottom:8px;
+}
+
+.active{
+border-bottom:2px solid black;
+font-weight:600;
+}
+
+.filters{
+display:flex;
+gap:10px;
+margin-bottom:20px;
+}
+
+.filter{
+background:#333;
+color:white;
+padding:8px 12px;
+font-size:12px;
+}
+
+.filter:first-child{
+background:#0a66cc;
+}
+
+.toolbar{
+display:flex;
+justify-content:flex-end;
+gap:10px;
+margin-bottom:14px;
+}
+
+.btn{
+height:34px;
+padding:0 16px;
+border:none;
+background:#111;
+color:white;
+cursor:pointer;
+}
+
+.btn:disabled{
+opacity:.3;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+}
+
+th{
+padding:12px;
+text-align:left;
+background:#fafafa;
+font-size:12px;
+}
+
+td{
+padding:14px 12px;
+border-bottom:1px solid #eee;
+font-size:13px;
+}
+
+input[type=checkbox]{
+width:14px;
+height:14px;
+accent-color:#0a66cc;
+cursor:pointer;
+}
+
+.green{
+color:#0b8d4e;
+}
+
+.red{
+color:#d74c4c;
+}
+
+.switch{
+width:30px;
+height:14px;
+border-radius:10px;
+background:#888;
+}
+
+.modal{
+position:fixed;
+inset:0;
+display:none;
+justify-content:center;
+align-items:center;
+background:rgba(0,0,0,.35);
+}
+
+.box{
+background:white;
+width:580px;
+padding:30px;
+}
+
+.box h1{
+margin-bottom:20px;
+}
+
+label{
+display:block;
+margin-top:16px;
+margin-bottom:6px;
+}
+
+select,input{
+width:100%;
+height:42px;
+padding:10px;
+}
+
+.read{
+background:#f4f4f4;
+}
+
+.actions{
+display:flex;
+justify-content:flex-end;
+gap:10px;
+margin-top:22px;
+}
+
+.toast{
+position:fixed;
+top:20px;
+right:20px;
+background:#111;
+color:white;
+padding:14px 20px;
+display:none;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="header">
+
+<div class="logo">
+SAMSUNG CognitiV/ SDNO
+</div>
+
+<div class="nav">
+
+<div>Monitor</div>
+
+<div class="nav-item">
+
+<div onclick="toggleMenu()">
+Inventory
+</div>
+
+<div id="menu" class="dropdown">
+
+<div>
+Device Inventory
+</div>
+
+<div onclick="openWhitebox()">
+Whitebox Inventory
+</div>
+
+</div>
+
+</div>
+
+<div>Configuration</div>
+<div>Security</div>
+<div>System</div>
+
+</div>
+
+</div>
+
+<div id="home" class="page">
+
+<h2>Device Overview</h2>
+
+<br><br>
+
+No device groups configured
+
+</div>
+
+<div id="whitebox" class="page hidden">
+
+<div class="tabs">
+
+<div
+id="wbTab"
+class="tab active"
+onclick="showWB()">
+
+Whitebox Inventory
+
+</div>
+
+<div
+id="osTab"
+class="tab"
+onclick="showOS()">
+
+OS Profile
+
+</div>
+
+</div>
+
+<div id="wb">
+
+<div class="filters">
+
+<div class="filter">
+ALL(3)
+</div>
+
+<div class="filter">
+Provisioned(2)
+</div>
+
+<div class="filter">
+Progress Fail(1)
+</div>
+
+</div>
+
+<div class="toolbar">
+
+<button
+id="install"
+class="btn"
+onclick="openModal()">
+
+NOS Install
+
+</button>
+
+<button class="btn">
+Provision
+</button>
+
+<button class="btn">
+↻
+</button>
+
+</div>
+
+<table>
+
+<tr>
+
+<th></th>
+
+<th>Status</th>
+
+<th>Name</th>
+
+<th>Management IP</th>
+
+<th>Model</th>
+
+<th>Provision State</th>
+
+<th>Maintenance Mode</th>
+
+</tr>
+
+<tr>
+
+<td>
+<input type="checkbox"
+onclick="toggleInstall()">
+</td>
+
+<td class="green">
+Provisioned
+</td>
+
+<td>
+WB_ACCESS_1
+</td>
+
+<td>
+10.10.10.11
+</td>
+
+<td>
+WB-48X
+</td>
+
+<td>
+<div class="switch"></div>
+</td>
+
+<td>
+OFF
+</td>
+
+</tr>
+
+<tr>
+
+<td>
+<input type="checkbox"
+onclick="toggleInstall()">
+</td>
+
+<td class="red">
+Progress Fail
+</td>
+
+<td>
+WB_ACCESS_2
+</td>
+
+<td>
+10.10.10.12
+</td>
+
+<td>
+WB-32Q
+</td>
+
+<td>
+OFF
+</td>
+
+<td>
+ON
+</td>
+
+</tr>
+
+</table>
+
+</div>
+
+<div
+id="os"
+class="hidden">
+
+<table>
+
+<tr>
+
+<th>Platform</th>
+
+<th>ONIE Version</th>
+
+<th>NOS Version</th>
+
+</tr>
+
+<tr>
+<td>WB-48X</td>
+<td>ONIE-2025.01</td>
+<td>ArcOS-5.4</td>
+</tr>
+
+<tr>
+<td>WB-32Q</td>
+<td>ONIE-2025.02</td>
+<td>ArcOS-5.5</td>
+</tr>
+
+<tr>
+<td>WB-24T</td>
+<td>ONIE-2024.11</td>
+<td>ArcOS-5.3</td>
+</tr>
+
+</table>
+
+</div>
+
+</div>
+
+<div
+id="modal"
+class="modal">
+
+<div class="box">
+
+<h1>
+NOS Management
+</h1>
+
+<label>
+Device model
+</label>
+
+<select>
+<option>WB-48X</option>
+</select>
+
+<label>
+NOS version
+</label>
+
+<select>
+<option>ArcOS-5.4</option>
+</select>
+
+<label>
+NOS image
+</label>
+
+<select>
+<option>arcos-installer.bin</option>
+</select>
+
+<label>
+Installation Type
+</label>
+
+<input
+class="read"
+readonly
+value="ONIE">
+
+<label>
+Target Device
+</label>
+
+<select>
+
+<option>
+SEC_ACCESS1_WBX001
+</option>
+
+<option>
+SEC_ACCESS2_WBX002
+</option>
+
+</select>
+
+<label>
+Delay before reload
+</label>
+
+<input
+value="00:05">
+
+<div class="actions">
+
+<button
+class="btn"
+onclick="closeModal()">
+
+Cancel
+
+</button>
+
+<button
+class="btn"
+onclick="launch()">
+
+Launch
+
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+<div
+id="toast"
+class="toast">
+
+Workflow launched successfully
+
+</div>
+
+<script>
+
+function toggleMenu(){
+
+menu.style.display=
+menu.style.display==="block"
+?"none"
+:"block"
+
+}
+
+function openWhitebox(){
+
+home.classList.add("hidden")
+
+whitebox.classList.remove(
+"hidden"
+)
+
+menu.style.display="none"
+
+}
+
+function showWB(){
+
+wb.classList.remove("hidden")
+
+os.classList.add("hidden")
+
+wbTab.classList.add("active")
+
+osTab.classList.remove("active")
+
+}
+
+function showOS(){
+
+wb.classList.add("hidden")
+
+os.classList.remove("hidden")
+
+osTab.classList.add("active")
+
+wbTab.classList.remove("active")
+
+}
+
+function toggleInstall(){
+
+let checked=
+document.querySelectorAll(
+'input[type=checkbox]:checked'
+).length
+
+install.disabled=
+checked>0
+
+}
+
+function openModal(){
+
+if(
+install.disabled
+)return
+
+modal.style.display=
+"flex"
+
+}
+
+function closeModal(){
+
+modal.style.display=
+"none"
+
+}
+
+function launch(){
+
+closeModal()
+
+toast.style.display=
+"block"
+
+setTimeout(()=>{
+
+toast.style.display=
+"none"
+
+},2500)
+
+}
+
+</script>
+
+</body>
+</html>
