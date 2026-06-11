@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SDNO Whitebox Inventory</title>
+
+<style>
+
+*{
+box-sizing:border-box;
+font-family:Arial;
+}
+
+body{
+margin:0;
+background:#f5f5f7;
+}
+
+.header{
+height:60px;
+background:white;
+display:flex;
+align-items:center;
+padding:0 30px;
+border-bottom:1px solid #ddd;
+}
+
+.logo{
+font-weight:bold;
+margin-right:60px;
+}
+
+.menu{
+display:flex;
+gap:50px;
+color:#444;
+}
+
+.container{
+padding:20px;
+}
+
+.tabs{
+display:flex;
+gap:20px;
+margin-bottom:20px;
+}
+
+.tab{
+padding-bottom:8px;
+cursor:pointer;
+}
+
+.active{
+border-bottom:2px solid black;
+}
+
+.status{
+display:flex;
+gap:10px;
+margin-bottom:20px;
+}
+
+.badge{
+padding:8px 12px;
+background:#666;
+color:white;
+font-size:12px;
+border-radius:4px;
+}
+
+.badge.blue{
+background:#216cff;
+}
+
+.toolbar{
+display:flex;
+justify-content:flex-end;
+gap:10px;
+margin-bottom:15px;
+}
+
+button{
+cursor:pointer;
+}
+
+.dark{
+background:black;
+color:white;
+border:none;
+padding:10px 16px;
+}
+
+.refresh{
+padding:10px;
+}
+
+table{
+width:100%;
+background:white;
+border-collapse:collapse;
+}
+
+th{
+text-align:left;
+padding:12px;
+font-size:13px;
+background:#fafafa;
+}
+
+td{
+padding:14px;
+border-top:1px solid #eee;
+}
+
+.green{
+color:green;
+}
+
+.orange{
+color:#d35400;
+}
+
+.modal{
+display:none;
+position:fixed;
+inset:0;
+background:rgba(0,0,0,.3);
+justify-content:center;
+align-items:center;
+}
+
+.card{
+width:480px;
+background:white;
+padding:28px;
+border-radius:8px;
+}
+
+.field{
+margin-bottom:18px;
+}
+
+label{
+display:block;
+margin-bottom:6px;
+font-size:13px;
+}
+
+select,input{
+width:100%;
+padding:10px;
+}
+
+.readonly{
+background:#eee;
+}
+
+.footer{
+display:flex;
+justify-content:flex-end;
+gap:10px;
+margin-top:20px;
+}
+
+.launch{
+background:black;
+color:white;
+padding:10px 18px;
+border:none;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="header">
+
+<div class="logo">
+SAMSUNG Cognitiv SDNO
+</div>
+
+<div class="menu">
+<div>Monitor</div>
+<div>Fault</div>
+<div><b>Inventory</b></div>
+<div>Configuration</div>
+<div>Security</div>
+<div>System</div>
+<div>Smart Suite</div>
+</div>
+
+</div>
+
+
+<div class="container">
+
+<div class="tabs">
+<div>Device Inventory</div>
+<div>NOS Profile</div>
+<div>Workflow History</div>
+<div>Workflow Launch</div>
+<div class="active">Whitebox Inventory</div>
+</div>
+
+
+<div class="status">
+
+<div class="badge blue">
+ALL (4)
+</div>
+
+<div class="badge">
+Ready for config (1)
+</div>
+
+<div class="badge">
+Waiting for NOS install (2)
+</div>
+
+<div class="badge">
+Waiting for ONIE upgrade (0)
+</div>
+
+<div class="badge">
+Provisioned (1)
+</div>
+
+</div>
+
+
+<div class="toolbar">
+
+<button class="dark" onclick="openInstall()">
+NOS Install
+</button>
+
+<button class="dark">
+ONIE Upgrade
+</button>
+
+<button class="refresh">
+↻
+</button>
+
+</div>
+
+
+<table>
+
+<tr>
+
+<th></th>
+<th>First discovered</th>
+<th>Serial Number</th>
+<th>Platform</th>
+<th>Status</th>
+<th>Note</th>
+
+</tr>
+
+
+<tr>
+
+<td>
+<input type="checkbox">
+</td>
+
+<td>
+2026-06-11
+</td>
+
+<td>
+WBX-001
+</td>
+
+<td>
+ACX5448
+</td>
+
+<td class="orange">
+Waiting for NOS install
+</td>
+
+<td>
+ONIE booted
+</td>
+
+</tr>
+
+
+<tr>
+
+<td>
+<input type="checkbox">
+</td>
+
+<td>
+2026-06-11
+</td>
+
+<td>
+WBX-002
+</td>
+
+<td>
+ACX710
+</td>
+
+<td class="green">
+Provisioned
+</td>
+
+<td>
+ArcOS installed
+</td>
+
+</tr>
+
+
+</table>
+
+</div>
+
+
+
+<div class="modal" id="modal">
+
+<div class="card">
+
+<h2>NOS Install</h2>
+
+
+<div class="field">
+
+<label>Device model</label>
+
+<select>
+
+<option>ACX5448</option>
+<option>ACX710</option>
+
+</select>
+
+</div>
+
+
+
+<div class="field">
+
+<label>NOS Version</label>
+
+<select>
+
+<option>ArcOS 5.4</option>
+<option>ArcOS 5.5</option>
+
+</select>
+
+</div>
+
+
+
+<div class="field">
+
+<label>NOS Image</label>
+
+<select>
+
+<option>arcos-installer.bin</option>
+<option>arcos-installer-v2.bin</option>
+
+</select>
+
+</div>
+
+
+
+<div class="field">
+
+<label>Installation Type</label>
+
+<input
+value="ONIE"
+readonly
+class="readonly">
+
+</div>
+
+
+
+<div class="field">
+
+<label>Delay before reload</label>
+
+<input value="00:05">
+
+</div>
+
+
+
+<div class="footer">
+
+<button onclick="closeModal()">
+Cancel
+</button>
+
+<button
+class="launch"
+onclick="launch()">
+
+Launch
+
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+
+<script>
+
+function openInstall(){
+
+document
+.getElementById("modal")
+.style.display="flex"
+
+}
+
+function closeModal(){
+
+document
+.getElementById("modal")
+.style.display="none"
+
+}
+
+function launch(){
+
+alert(
+"Workflow Submitted\n\nInstall Type: ONIE\nDHCP → Installer URL → ArcOS Install"
+)
+
+closeModal()
+
+}
+
+</script>
+
+</body>
+</html>
