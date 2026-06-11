@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<meta charset="utf-8">
+<title>SDNO Whitebox Inventory Demo</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Arial,sans-serif;
+}
+
+body{
+background:#fff;
+color:#222;
+}
+
+.header{
+height:64px;
+border-bottom:1px solid #ddd;
+display:flex;
+align-items:center;
+padding:0 30px;
+}
+
+.logo{
+font-weight:700;
+width:250px;
+}
+
+.nav{
+display:flex;
+gap:60px;
+font-size:14px;
+}
+
+.nav-item{
+cursor:pointer;
+position:relative;
+}
+
+.right{
+margin-left:auto;
+display:flex;
+gap:18px;
+}
+
+.dropdown{
+
+display:none;
+
+position:absolute;
+
+top:28px;
+
+left:-20px;
+
+background:white;
+
+width:220px;
+
+border:1px solid #ddd;
+
+box-shadow:
+0 4px 10px rgba(0,0,0,.1);
+
+z-index:10;
+
+}
+
+.dropdown div{
+
+padding:14px;
+
+cursor:pointer;
+
+}
+
+.dropdown div:hover{
+
+background:#f5f5f5;
+
+}
+
+.sub{
+
+height:48px;
+
+border-bottom:1px solid #eee;
+
+display:flex;
+
+align-items:center;
+
+padding:0 30px;
+
+gap:26px;
+
+}
+
+.tab{
+
+padding-bottom:8px;
+
+cursor:pointer;
+
+}
+
+.active{
+
+border-bottom:2px solid black;
+
+}
+
+.page{
+
+padding:18px 28px;
+
+}
+
+.hidden{
+
+display:none;
+
+}
+
+.center{
+
+height:600px;
+
+display:flex;
+
+flex-direction:column;
+
+justify-content:center;
+
+align-items:center;
+
+}
+
+.filters{
+
+display:flex;
+
+gap:10px;
+
+margin-bottom:18px;
+
+}
+
+.filter{
+
+background:#555;
+
+color:white;
+
+padding:8px 12px;
+
+font-size:12px;
+
+}
+
+.filter.active{
+
+background:#1565c0;
+
+}
+
+.toolbar{
+
+display:flex;
+
+justify-content:flex-end;
+
+gap:10px;
+
+margin-bottom:16px;
+
+}
+
+.btn{
+
+height:36px;
+
+padding:0 18px;
+
+border:none;
+
+background:black;
+
+color:white;
+
+cursor:pointer;
+
+}
+
+.btn:disabled{
+
+opacity:.3;
+
+cursor:not-allowed;
+
+}
+
+.refresh{
+
+width:36px;
+
+background:white;
+
+border:1px solid #ddd;
+
+}
+
+table{
+
+width:100%;
+
+border-collapse:collapse;
+
+}
+
+th{
+
+padding:14px;
+
+text-align:left;
+
+border-bottom:1px solid #ddd;
+
+font-size:13px;
+
+}
+
+td{
+
+padding:16px;
+
+border-bottom:1px solid #eee;
+
+font-size:13px;
+
+}
+
+.green{
+
+color:#0f8c44;
+
+}
+
+.red{
+
+color:#d9534f;
+
+}
+
+.profile{
+
+width:520px;
+
+border:1px solid #ddd;
+
+padding:20px;
+
+margin-bottom:20px;
+
+}
+
+.row{
+
+display:flex;
+
+justify-content:space-between;
+
+padding:14px;
+
+border-bottom:1px solid #eee;
+
+}
+
+.modal{
+
+display:none;
+
+position:fixed;
+
+inset:0;
+
+background:rgba(0,0,0,.45);
+
+justify-content:center;
+
+align-items:center;
+
+}
+
+.popup{
+
+width:520px;
+
+background:white;
+
+padding:28px;
+
+}
+
+.popup input,
+.popup select{
+
+width:100%;
+
+height:40px;
+
+margin-top:8px;
+
+margin-bottom:18px;
+
+padding:0 10px;
+
+}
+
+.actions{
+
+display:flex;
+
+justify-content:flex-end;
+
+gap:10px;
+
+}
+
+.footer{
+
+position:fixed;
+
+bottom:0;
+
+left:0;
+
+right:0;
+
+height:30px;
+
+background:#f5f5f5;
+
+display:flex;
+
+align-items:center;
+
+padding:0 14px;
+
+font-size:11px;
+
+gap:24px;
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="header">
+
+<div class="logo">
+SAMSUNG Cognitiv/ SDNO
+</div>
+
+<div class="nav">
+
+<div>Monitor</div>
+
+<div>Fault</div>
+
+<div class="nav-item">
+
+<div onclick="toggleInventory()">
+Inventory
+</div>
+
+<div id="inventoryMenu" class="dropdown">
+
+<div>AP Inventory</div>
+
+<div>BGP Inventory</div>
+
+<div>Device Inventory</div>
+
+<div>MAC Inventory</div>
+
+<div onclick="openWhitebox()">
+Whitebox Inventory
+</div>
+
+</div>
+
+</div>
+
+<div>Configuration</div>
+
+<div>Security</div>
+
+<div>System</div>
+
+<div>Smart Suite</div>
+
+</div>
+
+<div class="right">
+⚙ ☰ 👤
+</div>
+
+</div>
+
+
+<div id="home" class="page">
+
+<div class="center">
+
+<h1>
+Device Overview
+</h1>
+
+<br>
+
+<div>
+Click Inventory → Whitebox Inventory
+</div>
+
+</div>
+
+</div>
+
+
+
+<div id="whitebox" class="hidden">
+
+<div class="sub">
+
+<div
+class="tab active"
+onclick="showInventory()">
+
+Whitebox Inventory
+
+</div>
+
+<div
+class="tab"
+onclick="showProfile()">
+
+OS Profile
+
+</div>
+
+</div>
+
+
+<div
+id="inventoryPage"
+class="page">
+
+<div class="filters">
+
+<div class="filter active">
+ALL (4)
+</div>
+
+<div class="filter">
+Ready for detect (1)
+</div>
+
+<div class="filter">
+Waiting for NOS install (2)
+</div>
+
+<div class="filter">
+Waiting for provision (1)
+</div>
+
+<div class="filter">
+Provisioned (1)
+</div>
+
+</div>
+
+
+<div class="toolbar">
+
+<button
+id="nosBtn"
+class="btn">
+
+NOS Install
+
+</button>
+
+<button class="btn">
+
+Provision
+
+</button>
+
+<button class="refresh">
+
+↻
+
+</button>
+
+</div>
+
+
+<h3>
+Whitebox Inventory
+</h3>
+
+<br>
+
+
+<table>
+
+<tr>
+
+<th></th>
+
+<th>First discovered</th>
+
+<th>Serial</th>
+
+<th>Platform</th>
+
+<th>Status</th>
+
+<th>Note</th>
+
+</tr>
+
+
+<tr>
+
+<td>
+<input
+class="device"
+type="checkbox">
+</td>
+
+<td>2026-06-11</td>
+
+<td>WBX-001</td>
+
+<td>WB-48X</td>
+
+<td class="green">
+Provisioned
+</td>
+
+<td>
+ArcOS installed
+</td>
+
+</tr>
+
+
+<tr>
+
+<td>
+<input
+class="device"
+type="checkbox">
+</td>
+
+<td>2026-06-11</td>
+
+<td>WBX-002</td>
+
+<td>WB-48X</td>
+
+<td class="red">
+Progress Fail
+</td>
+
+<td>
+Install failed
+</td>
+
+</tr>
+
+
+<tr>
+
+<td>
+<input
+class="device"
+type="checkbox">
+</td>
+
+<td>2026-06-10</td>
+
+<td>WBX-003</td>
+
+<td>WB-32Q</td>
+
+<td class="red">
+Progress Fail
+</td>
+
+<td>
+DHCP timeout
+</td>
+
+</tr>
+
+</table>
+
+</div>
+
+
+
+<div
+id="profilePage"
+class="page hidden">
+
+<div class="profile">
+
+<div class="row">
+
+Model
+
+WB-48X
+
+</div>
+
+<div class="row">
+
+NOS Version
+
+ArcOS-5.4
+
+</div>
+
+<div class="row">
+
+NOS Image
+
+arcos-installer.bin
+
+</div>
+
+<div class="row">
+
+Installation Type
+
+ONIE
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+
+
+<div
+id="modal"
+class="modal">
+
+<div class="popup">
+
+<h1>
+NOS Management
+</h1>
+
+<br>
+
+Device model
+
+<select>
+
+<option>
+WB-48X
+</option>
+
+<option>
+WB-32Q
+</option>
+
+</select>
+
+
+NOS version
+
+<select>
+
+<option>
+ArcOS-5.4
+</option>
+
+</select>
+
+
+NOS image
+
+<select>
+
+<option>
+arcos-installer.bin
+</option>
+
+</select>
+
+
+Installation Type
+
+<input
+readonly
+value="ONIE">
+
+
+Target Device
+
+<select>
+
+<option>
+SEC_ACCESS1_WBX001
+</option>
+
+<option>
+SEC_ACCESS2_WBX002
+</option>
+
+</select>
+
+
+Delay before reload
+
+<input value="00:05">
+
+
+<div class="actions">
+
+<button
+onclick="closeModal()">
+
+Cancel
+
+</button>
+
+<button>
+
+Launch
+
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+
+
+<div class="footer">
+
+Connected
+
+MINOR
+
+SAO-0004
+
+ALARM
+
+[SDNO]
+
+</div>
+
+
+<script>
+
+function toggleInventory(){
+
+let m=
+document.getElementById(
+"inventoryMenu"
+);
+
+m.style.display=
+m.style.display==="block"
+?
+"none"
+:
+"block";
+
+}
+
+function openWhitebox(){
+
+home.classList.add(
+"hidden"
+);
+
+whitebox.classList.remove(
+"hidden"
+);
+
+inventoryMenu.style.display=
+"none";
+
+}
+
+function showProfile(){
+
+inventoryPage.classList.add(
+"hidden"
+);
+
+profilePage.classList.remove(
+"hidden"
+);
+
+}
+
+function showInventory(){
+
+profilePage.classList.add(
+"hidden"
+);
+
+inventoryPage.classList.remove(
+"hidden"
+);
+
+}
+
+let checks=
+document.querySelectorAll(
+".device"
+);
+
+let nos=
+document.getElementById(
+"nosBtn"
+);
+
+function update(){
+
+nos.disabled=
+
+document
+.querySelectorAll(
+".device:checked"
+)
+.length>0;
+
+}
+
+checks.forEach(
+
+x=>
+
+x.addEventListener(
+"change",
+update
+
+)
+
+);
+
+update();
+
+nos.onclick=()=>{
+
+if(
+nos.disabled
+)
+
+return;
+
+modal.style.display=
+"flex";
+
+};
+
+function closeModal(){
+
+modal.style.display=
+"none";
+
+}
+
+</script>
+
+</body>
+
+</html>
